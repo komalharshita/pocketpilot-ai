@@ -4,6 +4,7 @@ import streamlit as st
 from app.auth import login_signup
 from app.add_transaction import add_transaction_page
 from app.transaction_list import transaction_list
+from app.dashboard import dashboard_page
 
 if "user" not in st.session_state:
     login_signup()
@@ -48,9 +49,9 @@ if st.sidebar.button("Logout"):
 # --------------------------------------------------
 # Page Routing (Skeleton Only)
 # --------------------------------------------------
+
 if page == "Dashboard":
-    st.subheader("Dashboard")
-    transaction_list(st.session_state["user"])
+    dashboard_page(st.session_state["user"])
 
 elif page == "Add Transaction":
     add_transaction_page(st.session_state["user"])
