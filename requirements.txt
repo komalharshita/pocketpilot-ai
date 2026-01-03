@@ -4,3 +4,4 @@ firebase-admin
 google-cloud-documentai
 google-generativeai
 python-dotenv
+pyrebase4
