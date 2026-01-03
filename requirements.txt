@@ -1,7 +1,7 @@
 streamlit
 firebase-admin
-pyrebase4==4.7.1
 google-generativeai
 google-cloud-documentai
 pandas
 python-dotenv
+requests
