@@ -3,6 +3,8 @@
 import streamlit as st
 from services.document_ai_service import parse_receipt
 from services.receipt_extractor import extract_receipt_fields
+from services.receipt_extractor import extract_receipt_fields
+from services.receipt_service import save_receipt_and_transaction
 
 def upload_receipt_page(user):
     st.subheader("Upload Receipt")
@@ -27,10 +29,58 @@ def upload_receipt_page(user):
             st.error(f"Failed to process receipt: {str(e)}")
             return
 
-       # Normalize extracted data
+    # Normalize extracted data
+
     data = extract_receipt_fields(document)
 
-    st.subheader("Extracted Receipt Summary")
+    st.subheader("Review & Confirm Receipt")
+
+    with st.form("receipt_review_form"):
+        amount = st.number_input(
+            "Amount",
+            value=data["amount"] or 0.0,
+            format="%.2f"
+        )
+
+        date = st.date_input(
+            "Date",
+            value=data["date"].date() if data["date"] else None
+        )
+
+        merchant = st.text_input(
+            "Merchant",
+            value=data["merchant"] or ""
+        )
+
+        category = st.text_input("Category", value="General")
+
+        submitted = st.form_submit_button("Save as Expense")
+
+    if submitted:
+        if amount <= 0:
+            st.error("Amount must be greater than zero.")
+            return
+
+        receipt_data = {
+            "amount": amount,
+            "date": (
+                data["date"].replace(hour=0, minute=0)
+                if data["date"]
+                else None
+            ),
+            "merchant": merchant,
+            "confidence": data["confidence"],
+        }
+
+        save_receipt_and_transaction(
+            user_id=user["localId"],
+            receipt_data=receipt_data,
+            category=category,
+        )
+
+        st.success("Receipt saved and expense created successfully.")
+        st.experimental_rerun()
+
 
     st.write({
         "Amount": data["amount"],
