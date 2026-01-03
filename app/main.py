@@ -59,8 +59,7 @@ elif page == "Add Transaction":
     add_transaction_page(st.session_state["user"])
 
 elif page == "Upload Receipt":
-    st.subheader("Upload Receipt")
-    st.info("Receipt upload and extraction will be handled here.")
+    upload_receipt_page(st.session_state["user"])
 
 elif page == "Chat with Pilot":
     chat_page(st.session_state["user"])
