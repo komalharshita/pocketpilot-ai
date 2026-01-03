@@ -5,6 +5,7 @@ from app.auth import login_signup
 from app.add_transaction import add_transaction_page
 from app.transaction_list import transaction_list
 from app.dashboard import dashboard_page
+from app.chat import chat_page
 
 if "user" not in st.session_state:
     login_signup()
@@ -61,5 +62,4 @@ elif page == "Upload Receipt":
     st.info("Receipt upload and extraction will be handled here.")
 
 elif page == "Chat with Pilot":
-    st.subheader("Chat with Pilot")
-    st.info("Ask questions about your spending here.")
+    chat_page(st.session_state["user"])
