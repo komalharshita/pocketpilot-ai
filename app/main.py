@@ -3,7 +3,7 @@
 import streamlit as st
 from app.auth import login_signup
 from app.add_transaction import add_transaction_page
-
+from app.transaction_list import transaction_list
 
 if "user" not in st.session_state:
     login_signup()
@@ -50,7 +50,7 @@ if st.sidebar.button("Logout"):
 # --------------------------------------------------
 if page == "Dashboard":
     st.subheader("Dashboard")
-    st.info("Financial overview will appear here.")
+    transaction_list(st.session_state["user"])
 
 elif page == "Add Transaction":
     add_transaction_page(st.session_state["user"])
