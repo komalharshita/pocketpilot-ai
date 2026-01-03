@@ -1,6 +1,7 @@
 streamlit
 firebase-admin
 google-generativeai
+google-genai
 google-cloud-documentai
 pandas
 python-dotenv
