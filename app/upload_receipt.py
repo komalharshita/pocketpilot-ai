@@ -2,7 +2,7 @@
 
 import streamlit as st
 from services.document_ai_service import parse_receipt
-
+from services.receipt_extractor import extract_receipt_fields
 
 def upload_receipt_page(user):
     st.subheader("Upload Receipt")
@@ -27,9 +27,18 @@ def upload_receipt_page(user):
             st.error(f"Failed to process receipt: {str(e)}")
             return
 
-    # Show raw extracted entities (preview only)
-    st.success("Receipt processed successfully.")
-    st.subheader("Extracted Data (Preview)")
+       # Normalize extracted data
+    data = extract_receipt_fields(document)
+
+    st.subheader("Extracted Receipt Summary")
+
+    st.write({
+        "Amount": data["amount"],
+        "Date": data["date"].strftime("%Y-%m-%d") if data["date"] else None,
+        "Merchant": data["merchant"],
+        "Confidence": data["confidence"],
+    })
+
 
     if not document.entities:
         st.warning("No entities detected. Try a clearer receipt.")
