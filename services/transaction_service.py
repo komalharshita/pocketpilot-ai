@@ -24,8 +24,8 @@ def get_user_transactions(user_id: str) -> List[Dict]:
     query = (
         db.collection(COLLECTION)
         .where("user_id", "==", user_id)
-        .order_by("date", direction="DESCENDING")
     )
+
     return [doc.to_dict() for doc in query.stream()]
 
 def delete_transaction(user_id: str, transaction_id: str) -> None:

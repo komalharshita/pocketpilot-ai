@@ -8,11 +8,10 @@ RECEIPT_COLLECTION = "receipts"
 
 
 def save_receipt_and_transaction(user_id: str, receipt_data: dict, category: str):
-    """
-    Saves receipt metadata and creates a linked expense transaction.
-    """
 
-    # 1. Create expense transaction
+    if not receipt_data.get("amount") or receipt_data["amount"] <= 0:
+        raise ValueError("Invalid receipt amount")
+
     transaction_payload = {
         "user_id": user_id,
         "type": "expense",
@@ -25,7 +24,6 @@ def save_receipt_and_transaction(user_id: str, receipt_data: dict, category: str
 
     transaction_id = create_transaction(transaction_payload)
 
-    # 2. Save receipt metadata
     receipt_ref = db.collection(RECEIPT_COLLECTION).document()
     receipt_ref.set({
         "receipt_id": receipt_ref.id,

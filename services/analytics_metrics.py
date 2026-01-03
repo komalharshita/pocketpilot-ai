@@ -54,7 +54,9 @@ def compute_monthly_totals(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["month", "amount"])
 
-    expenses_df = df[df["type"] == "expense"].copy()
+    expenses_df = df[
+        (df["type"] == "expense") & (df["date"].notna())
+    ].copy()
 
     if expenses_df.empty:
         return pd.DataFrame(columns=["month", "amount"])

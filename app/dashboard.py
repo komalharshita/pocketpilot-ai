@@ -1,6 +1,7 @@
 # app/dashboard.py
 
 import streamlit as st
+
 from services.analytics_data import get_transactions_df
 from services.analytics_metrics import (
     compute_basic_metrics,
@@ -8,7 +9,7 @@ from services.analytics_metrics import (
     compute_monthly_totals,
     compute_month_over_month_change,
 )
-from app.transaction_list import transaction_list
+from transaction_list import transaction_list
 
 
 def dashboard_page(user):

@@ -1,26 +1,22 @@
 # services/firebase_service.py
 
-import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
-from dotenv import load_dotenv
+import streamlit as st
 
-# Load environment variables
-load_dotenv()
-
-# Singleton pattern to prevent multiple initializations
+# Prevent multiple initializations (Streamlit reruns)
 if not firebase_admin._apps:
-    cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    cred_dict = json.loads(
+        st.secrets["FIREBASE_SERVICE_ACCOUNT_JSON"]
+    )
 
-    if not cred_path:
-        raise ValueError("GOOGLE_APPLICATION_CREDENTIALS not set")
-
-    cred = credentials.Certificate(cred_path)
+    cred = credentials.Certificate(cred_dict)
 
     firebase_admin.initialize_app(
         cred,
         {
-            "storageBucket": f"{os.getenv('FIREBASE_PROJECT_ID')}.appspot.com"
+            "storageBucket": f"{st.secrets['FIREBASE_PROJECT_ID']}.appspot.com"
         }
     )
 

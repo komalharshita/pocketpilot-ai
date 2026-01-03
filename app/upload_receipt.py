@@ -3,8 +3,8 @@
 import streamlit as st
 from services.document_ai_service import parse_receipt
 from services.receipt_extractor import extract_receipt_fields
-from services.receipt_extractor import extract_receipt_fields
 from services.receipt_service import save_receipt_and_transaction
+
 
 def upload_receipt_page(user):
     st.subheader("Upload Receipt")
@@ -18,7 +18,6 @@ def upload_receipt_page(user):
         st.info("Upload a receipt to extract expense details.")
         return
 
-    # Determine MIME type
     mime_type = uploaded_file.type
     file_bytes = uploaded_file.read()
 
@@ -28,8 +27,6 @@ def upload_receipt_page(user):
         except Exception as e:
             st.error(f"Failed to process receipt: {str(e)}")
             return
-
-    # Normalize extracted data
 
     data = extract_receipt_fields(document)
 
@@ -63,11 +60,7 @@ def upload_receipt_page(user):
 
         receipt_data = {
             "amount": amount,
-            "date": (
-                data["date"].replace(hour=0, minute=0)
-                if data["date"]
-                else None
-            ),
+            "date": data["date"],
             "merchant": merchant,
             "confidence": data["confidence"],
         }
@@ -80,32 +73,3 @@ def upload_receipt_page(user):
 
         st.success("Receipt saved and expense created successfully.")
         st.experimental_rerun()
-
-
-    st.write({
-        "Amount": data["amount"],
-        "Date": data["date"].strftime("%Y-%m-%d") if data["date"] else None,
-        "Merchant": data["merchant"],
-        "Confidence": data["confidence"],
-    })
-
-
-    if not document.entities:
-        st.warning("No entities detected. Try a clearer receipt.")
-        return
-
-    extracted = []
-    for ent in document.entities:
-        extracted.append(
-            {
-                "type": ent.type_,
-                "value": ent.mention_text,
-                "confidence": round(ent.confidence, 2),
-            }
-        )
-
-    st.dataframe(extracted, use_container_width=True)
-
-    st.caption(
-        "You’ll be able to review, edit, and save this as a transaction in the next step."
-    )

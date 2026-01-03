@@ -37,7 +37,7 @@ def validate_transaction(payload: Dict) -> Dict:
     payload["created_at"] = datetime.utcnow()
 
     # Ensure date is datetime
-    if not isinstance(payload["date"], datetime):
+    if payload["date"] is not None and not isinstance(payload["date"], datetime):
         raise ValueError("date must be a datetime object")
 
     return payload

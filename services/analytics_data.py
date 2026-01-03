@@ -35,6 +35,6 @@ def get_transactions_df(user_id: str) -> pd.DataFrame:
     df["category"] = df["category"].fillna("General")
     df["type"] = df["type"].str.lower()
     df["source"] = df["source"].str.lower()
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.tz_localize(None)
 
     return df
