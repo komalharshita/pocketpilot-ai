@@ -2,6 +2,8 @@
 
 import streamlit as st
 from app.auth import login_signup
+from app.add_transaction import add_transaction_page
+
 
 if "user" not in st.session_state:
     login_signup()
@@ -51,8 +53,7 @@ if page == "Dashboard":
     st.info("Financial overview will appear here.")
 
 elif page == "Add Transaction":
-    st.subheader("Add Transaction")
-    st.info("Expense and income entry form will be added here.")
+    add_transaction_page(st.session_state["user"])
 
 elif page == "Upload Receipt":
     st.subheader("Upload Receipt")
