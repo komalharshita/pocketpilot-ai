@@ -16,8 +16,10 @@ def login_signup():
             try:
                 user = auth.sign_in_with_email_and_password(email, password)
                 st.session_state["user"] = user
-                st.success("Logged in successfully")
+
+                # Do NOT show success message before rerun
                 st.experimental_rerun()
+
             except Exception:
                 st.error("Invalid email or password")
 
@@ -25,6 +27,6 @@ def login_signup():
         if st.button("Sign Up"):
             try:
                 auth.create_user_with_email_and_password(email, password)
-                st.success("Account created. Please log in.")
+                st.success("Account created successfully. Please log in.")
             except Exception:
                 st.error("Account creation failed")
