@@ -1,6 +1,3 @@
-# pocketpilot-ai
-AI-powered expense tracker using Google Gemini and Document AI
-
 # PocketPilot AI
 
 PocketPilot AI is an AI-powered expense tracking web application that helps users track income and expenses, extract data from receipts using Google Document AI, and receive personalized financial insights through a Gemini-powered chatbot.
