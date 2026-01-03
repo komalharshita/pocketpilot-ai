@@ -6,6 +6,7 @@ from app.add_transaction import add_transaction_page
 from app.transaction_list import transaction_list
 from app.dashboard import dashboard_page
 from app.chat import chat_page
+from app.upload_receipt import upload_receipt_page
 
 if "user" not in st.session_state:
     login_signup()
