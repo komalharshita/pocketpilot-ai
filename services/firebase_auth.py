@@ -1,7 +1,7 @@
 # services/firebase_auth.py
 
 import os
-import pyrebase
+import pyrebase4 as pyrebase
 from dotenv import load_dotenv
 
 load_dotenv()
