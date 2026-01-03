@@ -1,6 +1,11 @@
 # app/main.py
 
 import streamlit as st
+from app.auth import login_signup
+
+if "user" not in st.session_state:
+    login_signup()
+    st.stop()
 
 # --------------------------------------------------
 # App Configuration
@@ -31,6 +36,12 @@ page = st.sidebar.radio(
         "Chat with Pilot"
     ]
 )
+
+st.sidebar.divider()
+if st.sidebar.button("Logout"):
+    st.session_state.clear()
+    st.experimental_rerun()
+
 
 # --------------------------------------------------
 # Page Routing (Skeleton Only)
