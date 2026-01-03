@@ -2,12 +2,14 @@
 
 PocketPilot AI is an AI-powered expense tracking web application that helps users track income and expenses, extract data from receipts using Google Document AI, and receive personalized financial insights through a Gemini-powered chatbot.
 
-## Tech Stack
-- Gemini API
-- Google Document AI
-- Streamlit
-- Python, Pandas
-- Firebase (optional)
+Firebase is used for user authentication and secure data storage.
 
-## Status
-Project initialization phase. Development will begin soon.
+## Core Technologies
+- Google Gemini API (AI chatbot & insights)
+- Google Document AI (receipt and bill extraction)
+- Firebase Authentication & Firestore
+- Streamlit (UI)
+- Python, Pandas
+
+## Project Status
+Repository initialized. Core development in progress.
