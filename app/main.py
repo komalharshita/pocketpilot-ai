@@ -282,27 +282,101 @@ elif page == "Upload Receipt":
                             st.success("Transaction added!")
                             st.rerun()
 
-# Chat with Pilot
-elif page == "Chat with Pilot":
-    st.title("🤖 Chat with Pilot")
-    st.markdown("Your **Gemini-powered** AI financial assistant")
-    
-    # Display chat history
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask Pilot about your finances..."):
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Get AI response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = chat_with_pilot(prompt)
-                st.write(response)
-        
-        st.session_state.messages.append({"role": "model", "content": response})
+elif page == "🤖 AI Pilot Chat":
+
+    st.markdown("## 🤖 Pilot AI")
+    st.caption("Your personal finance assistant")
+
+    # ---- Financial Summary ----
+    df = st.session_state.transactions.copy()
+    income = df[df["type"] == "Income"]["amount"].sum()
+    expenses = df[df["type"] == "Expense"]["amount"].sum()
+    balance = income - expenses
+
+    with st.container():
+        st.markdown(
+            f"""
+            <div style="
+                background:#f2f2f2;
+                padding:20px;
+                border-radius:16px;
+                margin-bottom:16px;
+            ">
+            👋 <b>Hi! I'm Pilot</b>, your AI finance assistant.  
+            I can help you understand your spending and improve budgeting.
+
+            <br><br>
+            <b>Here's a quick overview:</b><br>
+            • Total Balance: ₹{balance:,.2f}<br>
+            • Total Income: ₹{income:,.2f}<br>
+            • Total Expenses: ₹{expenses:,.2f}
+
+            <br><br>
+            Ask me anything about your finances!
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ---- Suggestion Chips ----
+    st.markdown("**Try asking:**")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✨ How much did I spend on food this month?"):
+            st.session_state.quick_query = "How much did I spend on food this month?"
+        if st.button("✨ Give me 3 tips to save money"):
+            st.session_state.quick_query = "Give me 3 simple tips to save money"
+
+    with col2:
+        if st.button("✨ What's my biggest expense category?"):
+            st.session_state.quick_query = "What's my biggest expense category?"
+        if st.button("✨ Summarize my spending this week"):
+            st.session_state.quick_query = "Summarize my spending this week"
+
+    # ---- Chat History ----
+    for msg in st.session_state.chat_history:
+        if msg["role"] == "user":
+            st.markdown(
+                f"<div style='text-align:right; background:#e0e7ff; padding:12px; border-radius:12px; margin:8px 0;'>"
+                f"<b>You:</b><br>{msg['content']}</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f"<div style='background:#f9fafb; padding:12px; border-radius:12px; margin:8px 0;'>"
+                f"<b>🤖 Pilot:</b><br>{msg['content']}</div>",
+                unsafe_allow_html=True
+            )
+
+    # ---- Chat Input ----
+    user_input = st.text_input(
+        "Ask Pilot about your finances...",
+        value=st.session_state.get("quick_query", "")
+    )
+
+    if "quick_query" in st.session_state:
+        del st.session_state.quick_query
+
+    if st.button("🚀 Send"):
+        if user_input.strip():
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": user_input
+            })
+
+            with st.spinner("Pilot is thinking..."):
+                try:
+                    response = st.session_state.gemini_client.get_financial_insights(
+                        st.session_state.transactions,
+                        user_input
+                    )
+                except Exception as e:
+                    response = f"⚠️ Error: {str(e)}"
+
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": response
+            })
+
+            st.rerun()
