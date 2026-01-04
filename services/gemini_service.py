@@ -13,7 +13,7 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Use a currently supported model
-MODEL_NAME = "gemini-2.5-pro-exp-03-25"
+MODEL_NAME = "gemini-1.5-flash"
 
 
 def chat_with_gemini(prompt: str) -> str:
