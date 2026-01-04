@@ -15,7 +15,6 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 # Import custom services
-<<<<<<< HEAD
 try:
     from services.gemini_service import GeminiClient, get_quick_insight
     GEMINI_AVAILABLE = True
@@ -25,29 +24,6 @@ except Exception as e:
 
 try:
     from services.document_service import DocumentAIClient, MockDocumentAIClient
-=======
-GEMINI_AVAILABLE = False
-DOCUMENT_AI_AVAILABLE = False
-GeminiClient = None
-DocumentAIClient = None
-MockDocumentAIClient = None
-
-try:
-    from services.gemini_service import GeminiClient
-    GEMINI_AVAILABLE = True
-    print("✓ Gemini service loaded successfully")
-except ImportError as e:
-    print(f"⚠ Gemini service not available: {e}")
-    try:
-        from services.gemini_client import GeminiClient
-        GEMINI_AVAILABLE = True
-        print("✓ Gemini service loaded successfully (alternate path)")
-    except ImportError as e2:
-        print(f"⚠ Gemini service not available: {e2}")
-
-try:
-    from services.document_ai_service import DocumentAIClient, MockDocumentAIClient
->>>>>>> b5e463fac8599b7221b8ad005e25a964a8be5249
     DOCUMENT_AI_AVAILABLE = True
     print("✓ Document AI service loaded successfully")
 except ImportError as e:
