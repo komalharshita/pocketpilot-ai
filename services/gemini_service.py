@@ -1,58 +1,46 @@
 # services/gemini_service.py
 
-import os
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 
 # ------------------------------------------------------------------
-# Load Gemini API key
+# Configure Gemini using Streamlit secrets
 # ------------------------------------------------------------------
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
+    raise RuntimeError("GEMINI_API_KEY is not set in Streamlit secrets")
 
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not set in environment or Streamlit secrets")
+genai.configure(api_key=GEMINI_API_KEY)
 
-# ------------------------------------------------------------------
-# Initialize Gemini client (AI Studio / API-key based)
-# ------------------------------------------------------------------
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-# Use the most stable, universally available model
-MODEL_NAME = "models/gemini-1.0-pro"
+# Stable, proven model
+MODEL_NAME = "gemini-pro"
 
 
-def generate_response(prompt: str) -> str:
+def generate_response(prompt: str, history: list | None = None) -> str:
     """
-    Generate a response from Gemini.
-    This function is Streamlit-safe and will not crash the app.
+    Generate a response using Gemini Pro with chat history.
+    This uses the same logic as the known-working reference chatbot.
     """
 
-    if not isinstance(prompt, str) or not prompt.strip():
+    if not prompt or not prompt.strip():
         return "Please ask a valid question."
 
+    if history is None:
+        history = []
+
     try:
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=[prompt]   # IMPORTANT: contents must be a list
-        )
+        model = genai.GenerativeModel(MODEL_NAME)
+        chat = model.start_chat(history=history)
 
-        if response is None:
+        response = chat.send_message(prompt)
+
+        if not response or not response.text:
             return "I couldn’t generate a response right now."
 
-        # Defensive extraction (SDK-safe)
-        text = getattr(response, "text", None)
-
-        if not text:
-            return "I couldn’t generate a response right now."
-
-        return text.strip()
+        return response.text.strip()
 
     except Exception as e:
-        # Log the real error to server logs
-        print("Gemini error:", repr(e))
-
-        # User-friendly fallback
+        # Log for debugging (visible in Streamlit Cloud logs)
+        print("Gemini error:", e)
         return "Sorry, I’m having trouble responding right now."
