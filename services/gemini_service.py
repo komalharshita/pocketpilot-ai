@@ -4,7 +4,7 @@ Provides conversational AI capabilities for financial insights and advice
 """
 
 import os
-import google.generativeai as genai
+from google import genai
 from typing import Dict, List, Optional
 import pandas as pd
 from datetime import datetime
