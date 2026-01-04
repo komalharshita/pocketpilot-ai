@@ -14,7 +14,7 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Stable, proven model
-MODEL_NAME = "gemini-pro"
+MODEL_NAME = "gemini-1.0-pro"
 
 
 def generate_response(prompt: str, history: list | None = None) -> str:
