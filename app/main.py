@@ -14,8 +14,8 @@ import uuid
 
 # Import our services
 from services.firebase_service import FirebaseService
-from document_ai_service import DocumentAIService
-from gemini_service import GeminiService
+from services.document_service import DocumentAIService
+from services.gemini_service import GeminiService
 
 # ============================================================================
 # PAGE CONFIGURATION
