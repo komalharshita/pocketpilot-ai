@@ -91,9 +91,16 @@ if 'transactions' not in st.session_state:
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
+if 'api_keys' not in st.session_state:
+    st.session_state.api_keys = {
+        'gemini': os.getenv('GOOGLE_API_KEY', ''),
+        'project_id': os.getenv('GOOGLE_CLOUD_PROJECT', ''),
+        'processor_id': os.getenv('DOCUMENT_AI_PROCESSOR_ID', '')
+    }
+
 if 'gemini_client' not in st.session_state and GEMINI_AVAILABLE:
     try:
-        api_key = os.getenv('GOOGLE_API_KEY')
+        api_key = st.session_state.api_keys.get('gemini') or os.getenv('GOOGLE_API_KEY')
         if api_key:
             st.session_state.gemini_client = GeminiClient(api_key)
         else:
@@ -164,10 +171,65 @@ def get_category_summary():
 st.sidebar.markdown('<h1 style="color: #4F46E5;">💰 PocketPilot AI</h1>', unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
+# API Configuration Section
+with st.sidebar.expander("⚙️ API Configuration", expanded=not st.session_state.get('gemini_client')):
+    st.markdown("#### Gemini AI")
+    gemini_key = st.text_input(
+        "API Key",
+        value=st.session_state.api_keys.get('gemini', ''),
+        type="password",
+        key="gemini_api_input",
+        help="Get your key from https://makersuite.google.com/app/apikey"
+    )
+    
+    if st.button("💾 Save Gemini Key", use_container_width=True):
+        if gemini_key:
+            st.session_state.api_keys['gemini'] = gemini_key
+            try:
+                st.session_state.gemini_client = GeminiClient(gemini_key)
+                st.success("✅ Gemini API connected!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to connect: {str(e)}")
+        else:
+            st.error("Please enter an API key")
+    
+    st.markdown("---")
+    st.markdown("#### Document AI (Optional)")
+    project_id = st.text_input(
+        "Project ID",
+        value=st.session_state.api_keys.get('project_id', ''),
+        key="project_id_input"
+    )
+    processor_id = st.text_input(
+        "Processor ID",
+        value=st.session_state.api_keys.get('processor_id', ''),
+        key="processor_id_input"
+    )
+    
+    if st.button("💾 Save Document AI Config", use_container_width=True):
+        if project_id and processor_id:
+            st.session_state.api_keys['project_id'] = project_id
+            st.session_state.api_keys['processor_id'] = processor_id
+            try:
+                st.session_state.document_ai_client = DocumentAIClient(
+                    project_id=project_id,
+                    processor_id=processor_id
+                )
+                st.success("✅ Document AI connected!")
+                st.rerun()
+            except Exception as e:
+                st.warning(f"Using mock mode: {str(e)}")
+                st.session_state.document_ai_client = MockDocumentAIClient()
+        else:
+            st.info("Using demo mode for Document AI")
+
+st.sidebar.markdown("---")
+
 # API Status indicators
 st.sidebar.markdown("### 🔌 API Status")
 gemini_status = "🟢 Connected" if st.session_state.get('gemini_client') else "🔴 Not configured"
-doc_ai_status = "🟢 Connected" if st.session_state.get('document_ai_client') else "🔴 Not configured"
+doc_ai_status = "🟢 Connected" if st.session_state.get('document_ai_client') and not isinstance(st.session_state.document_ai_client, MockDocumentAIClient) else "🟡 Demo Mode"
 st.sidebar.markdown(f"**Gemini AI:** {gemini_status}")
 st.sidebar.markdown(f"**Document AI:** {doc_ai_status}")
 st.sidebar.markdown("---")
@@ -509,11 +571,37 @@ elif page == "🤖 AI Pilot Chat":
     # Check Gemini availability
     if not st.session_state.get('gemini_client'):
         st.error("❌ Gemini API is not configured!")
+        
+        st.markdown("### 🔑 Quick Setup")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            quick_api_key = st.text_input(
+                "Enter your Gemini API Key",
+                type="password",
+                placeholder="AIza...",
+                help="Get your key from https://makersuite.google.com/app/apikey"
+            )
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🚀 Connect Now", use_container_width=True, type="primary"):
+                if quick_api_key:
+                    st.session_state.api_keys['gemini'] = quick_api_key
+                    try:
+                        st.session_state.gemini_client = GeminiClient(quick_api_key)
+                        st.success("✅ Connected!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.error("Please enter an API key")
+        
         st.info("""
-        **To enable AI Chat:**
-        1. Get your API key from https://makersuite.google.com/app/apikey
-        2. Add `GOOGLE_API_KEY=your_key_here` to your .env file
-        3. Restart the app
+        **Steps to get your API key:**
+        1. Visit https://makersuite.google.com/app/apikey
+        2. Click "Create API Key in new project" (or select existing project)
+        3. Copy the API key
+        4. Paste it above and click "Connect Now"
         """)
         
         # Show demo interface
@@ -540,7 +628,7 @@ elif page == "🤖 AI Pilot Chat":
 - Set category-wise monthly budgets
 - Try to save at least 20% of your income
 
-*Configure Gemini API for personalized, AI-powered insights!*
+*Connect Gemini API above for personalized, AI-powered insights!*
 """
         st.markdown(demo_response)
         
