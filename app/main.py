@@ -1,208 +1,308 @@
+# pocket_pilot.py
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 import plotly.express as px
-import plotly.graph_objects as go
-from dotenv import load_dotenv
-import os
-import sys
+from datetime import datetime
+import uuid
+import google.generativeai as genai
+import base64
+from PIL import Image
+import io
 
-# ------------------ PATH SETUP ------------------
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-# ------------------ IMPORT SERVICES ------------------
-try:
-    from services.gemini_service import GeminiClient
-    GEMINI_AVAILABLE = True
-except Exception as e:
-    GEMINI_AVAILABLE = False
-    print("Gemini service unavailable:", e)
-
-try:
-    from services.document_service import DocumentAIClient, MockDocumentAIClient
-    DOCUMENT_AI_AVAILABLE = True
-except Exception:
-    DOCUMENT_AI_AVAILABLE = False
-
-# ------------------ ENV & PAGE CONFIG ------------------
-load_dotenv()
-
+# Page config
 st.set_page_config(
-    page_title="PocketPilot AI",
+    page_title="PocketPilot AI - Smart Expense Tracker",
     page_icon="💰",
     layout="wide"
 )
 
-# ------------------ SESSION STATE ------------------
-if "transactions" not in st.session_state:
-    st.session_state.transactions = pd.DataFrame([
-        {
-            "id": 1,
-            "type": "Expense",
-            "amount": 250,
-            "category": "Food",
-            "date": datetime.now() - timedelta(days=2),
-            "merchant": "Restaurant",
-            "notes": ""
-        },
-        {
-            "id": 2,
-            "type": "Income",
-            "amount": 5000,
-            "category": "Allowance",
-            "date": datetime.now() - timedelta(days=5),
-            "merchant": "Parent",
-            "notes": ""
-        }
-    ])
+# Gemini API setup
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-if "gemini_client" not in st.session_state:
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if GEMINI_AVAILABLE and api_key:
-        try:
-            st.session_state.gemini_client = GeminiClient(api_key)
-        except Exception:
-            st.session_state.gemini_client = None
-    else:
-        st.session_state.gemini_client = None
-
-# ------------------ HELPERS ------------------
-def financial_summary():
-    df = st.session_state.transactions
-    income = df[df["type"] == "Income"]["amount"].sum()
-    expense = df[df["type"] == "Expense"]["amount"].sum()
-    return income, expense, income - expense
-
-# ------------------ SIDEBAR ------------------
-st.sidebar.title("💰 PocketPilot AI")
-page = st.sidebar.radio(
-    "Navigate",
-    [
-        "📊 Dashboard",
-        "➕ Add Transaction",
-        "📋 Transactions",
-        "🤖 AI Pilot Chat"
+# Initialize session state
+if 'transactions' not in st.session_state:
+    st.session_state.transactions = [
+        {"id": "1", "type": "expense", "amount": 45.50, "category": "Food", "date": "2026-01-04", "merchant": "Campus Cafe", "notes": "Lunch with study group"},
+        {"id": "2", "type": "expense", "amount": 120.00, "category": "Transport", "date": "2026-01-03", "merchant": "Uber", "notes": "Weekly commute"},
+        {"id": "3", "type": "income", "amount": 500.00, "category": "Freelance", "date": "2026-01-02", "merchant": "Client Project", "notes": "Web design project"},
+        {"id": "4", "type": "expense", "amount": 89.99, "category": "Shopping", "date": "2026-01-01", "merchant": "Amazon", "notes": "Textbooks"},
+        {"id": "5", "type": "expense", "amount": 35.00, "category": "Entertainment", "date": "2025-12-30", "merchant": "Netflix", "notes": "Monthly subscription"},
+        {"id": "6", "type": "income", "amount": 1500.00, "category": "Salary", "date": "2025-12-28", "merchant": "Part-time Job", "notes": "December salary"},
     ]
-)
 
-# ------------------ DASHBOARD ------------------
-if page == "📊 Dashboard":
-    income, expense, balance = financial_summary()
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Income", f"₹{income:,.0f}")
-    c2.metric("Expenses", f"₹{expense:,.0f}")
-    c3.metric("Balance", f"₹{balance:,.0f}")
+EXPENSE_CATEGORIES = ['Food', 'Transport', 'Groceries', 'Bills', 'Entertainment', 'Shopping', 'Health', 'Education', 'Other']
+INCOME_CATEGORIES = ['Salary', 'Freelance', 'Investment', 'Other']
 
-    st.subheader("Spending by Category")
-    df = st.session_state.transactions
-    expense_df = df[df["type"] == "Expense"]
-    if not expense_df.empty:
-        fig = px.pie(
-            expense_df,
-            values="amount",
-            names="category",
-            hole=0.4
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No expenses yet")
+def get_summary():
+    df = pd.DataFrame(st.session_state.transactions)
+    total_income = df[df['type'] == 'income']['amount'].sum()
+    total_expenses = df[df['type'] == 'expense']['amount'].sum()
+    return total_income, total_expenses, total_income - total_expenses
 
-# ------------------ ADD TRANSACTION ------------------
-elif page == "➕ Add Transaction":
-    st.header("Add Transaction")
+def get_transactions_context():
+    """Get transaction summary for AI context"""
+    df = pd.DataFrame(st.session_state.transactions)
+    total_income, total_expenses, balance = get_summary()
+    
+    recent = df.head(10).to_dict('records')
+    recent_str = "\n".join([f"- {t['date']}: {t['type']} ₹{t['amount']} ({t['category']}) - {t.get('merchant', 'N/A')}" for t in recent])
+    
+    return f"""
+User's Financial Summary:
+- Total Income: ₹{total_income:,.2f}
+- Total Expenses: ₹{total_expenses:,.2f}
+- Current Balance: ₹{balance:,.2f}
 
-    with st.form("add_tx"):
-        t_type = st.selectbox("Type", ["Expense", "Income"])
-        amt = st.number_input("Amount", min_value=1.0)
-        cat = st.text_input("Category")
-        merchant = st.text_input("Merchant")
-        submitted = st.form_submit_button("Add")
+Recent Transactions:
+{recent_str}
+"""
 
-    if submitted:
-        new_id = len(st.session_state.transactions) + 1
-        st.session_state.transactions.loc[len(st.session_state.transactions)] = [
-            new_id, t_type, amt, cat, datetime.now(), merchant, ""
-        ]
-        st.success("Transaction added")
+def chat_with_pilot(user_message):
+    """Chat with Gemini AI about finances"""
+    if not GEMINI_API_KEY:
+        return "⚠️ Please add your Gemini API key to .streamlit/secrets.toml"
+    
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        context = get_transactions_context()
+        system_prompt = f"""You are Pilot, a friendly AI financial assistant for students. 
+You help with budgeting, expense tracking, and financial advice.
+Keep responses concise and actionable. Use ₹ for currency.
 
-# ------------------ TRANSACTIONS ------------------
-elif page == "📋 Transactions":
-    st.header("All Transactions")
-    st.dataframe(st.session_state.transactions, use_container_width=True)
+{context}
+"""
+        
+        chat = model.start_chat(history=[
+            {"role": "user", "parts": [system_prompt]},
+            {"role": "model", "parts": ["I understand! I'm Pilot, ready to help with your finances."]}
+        ])
+        
+        # Add conversation history
+        for msg in st.session_state.messages[-10:]:  # Last 10 messages for context
+            chat.history.append({"role": msg["role"], "parts": [msg["content"]]})
+        
+        response = chat.send_message(user_message)
+        return response.text
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
-# ------------------ AI CHAT (SIMPLIFIED & SAFE) ------------------
-elif page == "🤖 AI Pilot Chat":
-    st.header("🤖 AI Pilot (Simple Mode)")
+def extract_receipt_with_gemini(image_bytes):
+    """Use Gemini Vision to extract receipt data"""
+    if not GEMINI_API_KEY:
+        return None, "Please add your Gemini API key to .streamlit/secrets.toml"
+    
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # Convert bytes to PIL Image
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        prompt = """Analyze this receipt image and extract the following information in JSON format:
+{
+    "merchant": "store/restaurant name",
+    "amount": total amount as a number,
+    "date": "YYYY-MM-DD format",
+    "category": one of ["Food", "Transport", "Groceries", "Bills", "Entertainment", "Shopping", "Health", "Education", "Other"],
+    "items": ["list of items if visible"]
+}
 
-    if not st.session_state.gemini_client:
-        st.warning("Gemini API not configured. Showing demo responses.")
+If you cannot read certain fields, use null. Return ONLY the JSON, no other text."""
 
-    # ---- QUICK PROMPTS ----
-    st.subheader("Quick Prompts")
+        response = model.generate_content([prompt, image])
+        
+        # Parse JSON from response
+        import json
+        text = response.text.strip()
+        # Remove markdown code blocks if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        
+        data = json.loads(text)
+        return data, None
+    except Exception as e:
+        return None, f"Error extracting receipt: {str(e)}"
+
+# Sidebar navigation
+st.sidebar.title("💰 PocketPilot AI")
+st.sidebar.markdown("*Smart Finance for Students*")
+
+if not GEMINI_API_KEY:
+    st.sidebar.warning("⚠️ Add GEMINI_API_KEY to secrets")
+
+page = st.sidebar.radio("Navigate", ["Dashboard", "Transactions", "Analytics", "Upload Receipt", "Chat with Pilot"])
+
+# Dashboard
+if page == "Dashboard":
+    st.title("📊 Dashboard")
+    
+    total_income, total_expenses, balance = get_summary()
+    
     col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("💰 Balance", f"₹{balance:,.2f}")
+    with col2:
+        st.metric("📈 Income", f"₹{total_income:,.2f}")
+    with col3:
+        st.metric("📉 Expenses", f"₹{total_expenses:,.2f}")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("💸 Spending by Category")
+        df = pd.DataFrame(st.session_state.transactions)
+        expense_df = df[df['type'] == 'expense']
+        if not expense_df.empty:
+            category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
+            fig = px.pie(category_totals, values='amount', names='category', hole=0.4)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader("📋 Recent Transactions")
+        for t in st.session_state.transactions[:5]:
+            icon = "🔴" if t['type'] == 'expense' else "🟢"
+            sign = "-" if t['type'] == 'expense' else "+"
+            st.markdown(f"{icon} **{t.get('merchant', t['category'])}** - {sign}₹{t['amount']:,.2f}")
 
-    quick_prompts = {
-        "📊 Spending Summary": "Give me a simple summary of my spending habits.",
-        "💡 Budget Tips": "Give me 5 simple budgeting tips for students.",
-        "💰 Saving Advice": "How can a student save more money every month?"
-    }
-
-    for col, (label, prompt) in zip([col1, col2, col3], quick_prompts.items()):
-        with col:
-            if st.button(label):
-                st.session_state.chat_history.append(
-                    {"role": "user", "content": prompt}
-                )
-
-                if st.session_state.gemini_client:
-                    try:
-                        reply = st.session_state.gemini_client.ask(prompt)
-                    except Exception:
-                        reply = "⚠️ Gemini is temporarily unavailable. Please try again later."
-                else:
-                    reply = "💡 Demo Mode: Track expenses, set limits, and save at least 20% monthly."
-
-                st.session_state.chat_history.append(
-                    {"role": "assistant", "content": reply}
-                )
+# Transactions
+elif page == "Transactions":
+    st.title("💳 Transactions")
+    
+    with st.expander("➕ Add New Transaction", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            trans_type = st.selectbox("Type", ["expense", "income"])
+            amount = st.number_input("Amount (₹)", min_value=0.01, step=0.01)
+            categories = EXPENSE_CATEGORIES if trans_type == "expense" else INCOME_CATEGORIES
+            category = st.selectbox("Category", categories)
+        with col2:
+            date = st.date_input("Date", datetime.now())
+            merchant = st.text_input("Merchant")
+            notes = st.text_area("Notes")
+        
+        if st.button("Add Transaction", type="primary"):
+            new_trans = {
+                "id": str(uuid.uuid4()),
+                "type": trans_type,
+                "amount": amount,
+                "category": category,
+                "date": str(date),
+                "merchant": merchant,
+                "notes": notes
+            }
+            st.session_state.transactions.insert(0, new_trans)
+            st.success("Transaction added!")
+            st.rerun()
+    
+    st.subheader("All Transactions")
+    for t in st.session_state.transactions:
+        col1, col2, col3 = st.columns([3, 1, 1])
+        with col1:
+            icon = "🔴" if t['type'] == 'expense' else "🟢"
+            st.markdown(f"{icon} **{t.get('merchant', t['category'])}** ({t['category']}) - {t['date']}")
+        with col2:
+            sign = "-" if t['type'] == 'expense' else "+"
+            st.markdown(f"**{sign}₹{t['amount']:,.2f}**")
+        with col3:
+            if st.button("🗑️", key=f"del_{t['id']}"):
+                st.session_state.transactions = [x for x in st.session_state.transactions if x['id'] != t['id']]
                 st.rerun()
 
-    # ---- CHAT HISTORY ----
-    st.markdown("---")
-    for msg in st.session_state.chat_history:
-        if msg["role"] == "user":
-            st.markdown(f"**You:** {msg['content']}")
-        else:
-            st.markdown(f"**🤖 Pilot:** {msg['content']}")
+# Analytics
+elif page == "Analytics":
+    st.title("📈 Analytics")
+    
+    df = pd.DataFrame(st.session_state.transactions)
+    df['date'] = pd.to_datetime(df['date'])
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Spending by Category")
+        expense_df = df[df['type'] == 'expense']
+        if not expense_df.empty:
+            category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
+            fig = px.bar(category_totals, x='category', y='amount', color='category')
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader("Income vs Expenses")
+        summary_df = df.groupby('type')['amount'].sum().reset_index()
+        fig = px.bar(summary_df, x='type', y='amount', color='type')
+        st.plotly_chart(fig, use_container_width=True)
+    
+    st.subheader("📥 Export Data")
+    csv = df.to_csv(index=False)
+    st.download_button("Download CSV", csv, "transactions.csv", "text/csv")
 
-    # ---- MANUAL INPUT ----
-    user_input = st.text_input("Ask something else:")
-    if st.button("Send") and user_input:
-        st.session_state.chat_history.append(
-            {"role": "user", "content": user_input}
-        )
+# Upload Receipt
+elif page == "Upload Receipt":
+    st.title("📸 Upload Receipt")
+    st.markdown("Upload a receipt and **Gemini AI** will extract the details automatically.")
+    
+    uploaded_file = st.file_uploader("Choose a receipt image", type=['png', 'jpg', 'jpeg'])
+    
+    if uploaded_file:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.image(uploaded_file, caption="Uploaded Receipt", width=300)
+        
+        with col2:
+            if st.button("🤖 Extract with Gemini AI", type="primary"):
+                with st.spinner("Analyzing receipt with Gemini Vision..."):
+                    image_bytes = uploaded_file.getvalue()
+                    data, error = extract_receipt_with_gemini(image_bytes)
+                    
+                    if error:
+                        st.error(error)
+                    elif data:
+                        st.success("✅ Receipt analyzed!")
+                        st.json(data)
+                        
+                        # Auto-add transaction
+                        if st.button("➕ Add as Transaction"):
+                            new_trans = {
+                                "id": str(uuid.uuid4()),
+                                "type": "expense",
+                                "amount": float(data.get('amount', 0)),
+                                "category": data.get('category', 'Other'),
+                                "date": data.get('date', str(datetime.now().date())),
+                                "merchant": data.get('merchant', 'Unknown'),
+                                "notes": f"Items: {', '.join(data.get('items', []))}" if data.get('items') else ""
+                            }
+                            st.session_state.transactions.insert(0, new_trans)
+                            st.success("Transaction added!")
+                            st.rerun()
 
-        if st.session_state.gemini_client:
-            try:
-                reply = st.session_state.gemini_client.ask(user_input)
-            except Exception:
-                reply = "⚠️ Gemini error. Please retry."
-        else:
-            reply = "💡 Demo response: Build a habit of reviewing expenses weekly."
-
-        st.session_state.chat_history.append(
-            {"role": "assistant", "content": reply}
-        )
-        st.rerun()
-
-# ------------------ FOOTER ------------------
-st.sidebar.markdown("---")
-st.sidebar.markdown("Built with ❤️ for Hackathons")
-st.sidebar.markdown("PocketPilot AI · v1 (Stable)")
+# Chat with Pilot
+elif page == "Chat with Pilot":
+    st.title("🤖 Chat with Pilot")
+    st.markdown("Your **Gemini-powered** AI financial assistant")
+    
+    # Display chat history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask Pilot about your finances..."):
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
+        
+        # Get AI response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = chat_with_pilot(prompt)
+                st.write(response)
+        
+        st.session_state.messages.append({"role": "model", "content": response})
