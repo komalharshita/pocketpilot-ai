@@ -254,7 +254,7 @@ Recent Transactions (Last 10):
 def chat_with_pilot(user_message: str) -> str:
     """
     Send message to Gemini AI and get response
-    FIX: Complete error handling and proper API usage
+    FIX: Correct API format for google-genai SDK
     """
     if not GEMINI_API_KEY or not genai_client:
         return "⚠️ **API Key Missing**: Please add your Gemini API key to `.streamlit/secrets.toml`\n\nExample:\n```\nGEMINI_API_KEY = \"your-api-key-here\"\n```"
@@ -266,7 +266,7 @@ def chat_with_pilot(user_message: str) -> str:
         # Build context with system prompt
         context = get_transactions_context()
         
-        system_prompt = f"""You are **Pilot**, a friendly and helpful AI financial assistant for students.
+        system_prompt = f"""You are Pilot, a friendly AI financial assistant for students.
 
 Your role:
 • Help users understand their spending patterns
@@ -279,44 +279,28 @@ Guidelines:
 • Use emojis sparingly for clarity (💡, 💰, 📊)
 • Use ₹ symbol for Indian Rupees
 • Be encouraging and supportive
-• If you don't have enough data, say so and suggest what info would help
 
 Current User Data:
 {context}
 
-Remember: Keep responses SHORT and HELPFUL. No lengthy explanations unless asked."""
+Remember: Keep responses SHORT and HELPFUL."""
 
-        # Build message history
-        messages = []
+        # FIX: Build conversation string instead of complex dict structure
+        # The google-genai SDK expects simpler format
+        conversation = system_prompt + "\n\n"
         
-        # Add system context as first user message (Gemini doesn't have separate system role)
-        messages.append({
-            "role": "user",
-            "parts": [system_prompt]
-        })
-        messages.append({
-            "role": "model",
-            "parts": ["I understand! I'm Pilot, your finance assistant. I'll help you with budgeting and spending insights based on your data. What would you like to know?"]
-        })
-        
-        # Add conversation history (last 6 exchanges for context)
-        for msg in st.session_state.chat_history[-12:]:
-            role = "user" if msg["role"] == "user" else "model"
-            messages.append({
-                "role": role,
-                "parts": [msg["content"]]
-            })
+        # Add conversation history
+        for msg in st.session_state.chat_history[-6:]:  # Last 6 messages
+            role_label = "User" if msg["role"] == "user" else "Pilot"
+            conversation += f"{role_label}: {msg['content']}\n\n"
         
         # Add current message
-        messages.append({
-            "role": "user",
-            "parts": [user_message]
-        })
+        conversation += f"User: {user_message}\n\nPilot:"
         
-        # Call Gemini API
+        # Call Gemini API with simple string prompt
         response = genai_client.models.generate_content(
             model="gemini-1.5-flash",
-            contents=messages
+            contents=conversation
         )
         
         # Extract response text
@@ -360,9 +344,10 @@ Rules:
 - Use null for fields you cannot read
 - Return ONLY valid JSON, no markdown, no explanations"""
 
+        # FIX: Correct format for vision API with image
         response = genai_client.models.generate_content(
             model="gemini-1.5-flash",
-            contents=[prompt, image]
+            contents=[prompt, image]  # Simple list format works for mixed content
         )
         
         text = response.text.strip()
