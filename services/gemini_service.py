@@ -41,6 +41,8 @@ def generate_response(prompt: str, history: list | None = None) -> str:
         return response.text.strip()
 
     except Exception as e:
-        # Log for debugging (visible in Streamlit Cloud logs)
-        print("Gemini error:", e)
-        return "Sorry, I’m having trouble responding right now."
+        import traceback
+        traceback.print_exc()
+        st.error(f"Gemini error: {repr(e)}")
+        raise
+
