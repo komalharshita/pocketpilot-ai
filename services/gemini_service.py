@@ -22,7 +22,7 @@ class GeminiClient:
         # ✅ NEW SDK (official)
         self.client = genai.Client(api_key=self.api_key)
 
-        # ✅ Supported, stable model
+        # ✅ Supported, stable model - consistent across all files
         self.model = "gemini-1.5-flash"
 
     def ask(self, prompt: str) -> str:
@@ -38,13 +38,13 @@ class GeminiClient:
                 contents=prompt
             )
 
-            if response and response.text:
+            if response and hasattr(response, 'text'):
                 return response.text.strip()
 
             return "I couldn't generate a response."
 
-        except Exception:
-            return "⚠️ Gemini is currently unavailable. Please try again later."
+        except Exception as e:
+            return f"⚠️ Gemini is currently unavailable: {str(e)}"
 
 
 # ------------------------------------------------------------------

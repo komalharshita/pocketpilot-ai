@@ -36,6 +36,7 @@ class FinancialAnalytics:
                 "savings_rate": 0.0
             }
 
+        # ✅ Fixed: Capitalized to match main.py transaction types
         income = df[df["type"] == "Income"]["amount"].sum()
         expenses = df[df["type"] == "Expense"]["amount"].sum()
         balance = income - expenses

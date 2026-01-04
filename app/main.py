@@ -4,10 +4,11 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import uuid
-import google.generativeai as genai
+from google import genai
 import base64
 from PIL import Image
 import io
+import json
 
 # Page config
 st.set_page_config(
@@ -19,29 +20,36 @@ st.set_page_config(
 # Gemini API setup
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    genai_client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    genai_client = None
 
 # Initialize session state
 if 'transactions' not in st.session_state:
     st.session_state.transactions = [
-        {"id": "1", "type": "expense", "amount": 45.50, "category": "Food", "date": "2026-01-04", "merchant": "Campus Cafe", "notes": "Lunch with study group"},
-        {"id": "2", "type": "expense", "amount": 120.00, "category": "Transport", "date": "2026-01-03", "merchant": "Uber", "notes": "Weekly commute"},
-        {"id": "3", "type": "income", "amount": 500.00, "category": "Freelance", "date": "2026-01-02", "merchant": "Client Project", "notes": "Web design project"},
-        {"id": "4", "type": "expense", "amount": 89.99, "category": "Shopping", "date": "2026-01-01", "merchant": "Amazon", "notes": "Textbooks"},
-        {"id": "5", "type": "expense", "amount": 35.00, "category": "Entertainment", "date": "2025-12-30", "merchant": "Netflix", "notes": "Monthly subscription"},
-        {"id": "6", "type": "income", "amount": 1500.00, "category": "Salary", "date": "2025-12-28", "merchant": "Part-time Job", "notes": "December salary"},
+        {"id": "1", "type": "Expense", "amount": 45.50, "category": "Food", "date": "2026-01-04", "merchant": "Campus Cafe", "notes": "Lunch with study group"},
+        {"id": "2", "type": "Expense", "amount": 120.00, "category": "Transport", "date": "2026-01-03", "merchant": "Uber", "notes": "Weekly commute"},
+        {"id": "3", "type": "Income", "amount": 500.00, "category": "Freelance", "date": "2026-01-02", "merchant": "Client Project", "notes": "Web design project"},
+        {"id": "4", "type": "Expense", "amount": 89.99, "category": "Shopping", "date": "2026-01-01", "merchant": "Amazon", "notes": "Textbooks"},
+        {"id": "5", "type": "Expense", "amount": 35.00, "category": "Entertainment", "date": "2025-12-30", "merchant": "Netflix", "notes": "Monthly subscription"},
+        {"id": "6", "type": "Income", "amount": 1500.00, "category": "Salary", "date": "2025-12-28", "merchant": "Part-time Job", "notes": "December salary"},
     ]
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 
 EXPENSE_CATEGORIES = ['Food', 'Transport', 'Groceries', 'Bills', 'Entertainment', 'Shopping', 'Health', 'Education', 'Other']
 INCOME_CATEGORIES = ['Salary', 'Freelance', 'Investment', 'Other']
 
 def get_summary():
     df = pd.DataFrame(st.session_state.transactions)
-    total_income = df[df['type'] == 'income']['amount'].sum()
-    total_expenses = df[df['type'] == 'expense']['amount'].sum()
+    if df.empty:
+        return 0, 0, 0
+    total_income = df[df['type'] == 'Income']['amount'].sum()
+    total_expenses = df[df['type'] == 'Expense']['amount'].sum()
     return total_income, total_expenses, total_income - total_expenses
 
 def get_transactions_context():
@@ -64,12 +72,10 @@ Recent Transactions:
 
 def chat_with_pilot(user_message):
     """Chat with Gemini AI about finances"""
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY or not genai_client:
         return "⚠️ Please add your Gemini API key to .streamlit/secrets.toml"
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         context = get_transactions_context()
         system_prompt = f"""You are Pilot, a friendly AI financial assistant for students. 
 You help with budgeting, expense tracking, and financial advice.
@@ -78,28 +84,38 @@ Keep responses concise and actionable. Use ₹ for currency.
 {context}
 """
         
-        chat = model.start_chat(history=[
+        # Prepare conversation history
+        history = [
             {"role": "user", "parts": [system_prompt]},
             {"role": "model", "parts": ["I understand! I'm Pilot, ready to help with your finances."]}
-        ])
+        ]
         
-        # Add conversation history
-        for msg in st.session_state.messages[-10:]:  # Last 10 messages for context
-            chat.history.append({"role": msg["role"], "parts": [msg["content"]]})
+        # Add previous messages (last 10 for context)
+        for msg in st.session_state.chat_history[-10:]:
+            role = "user" if msg["role"] == "user" else "model"
+            history.append({"role": role, "parts": [msg["content"]]})
         
-        response = chat.send_message(user_message)
-        return response.text
+        # Add current message
+        history.append({"role": "user", "parts": [user_message]})
+        
+        response = genai_client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=history
+        )
+        
+        if response and hasattr(response, 'text'):
+            return response.text.strip()
+        return "I couldn't generate a response."
+        
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
 def extract_receipt_with_gemini(image_bytes):
     """Use Gemini Vision to extract receipt data"""
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY or not genai_client:
         return None, "Please add your Gemini API key to .streamlit/secrets.toml"
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         # Convert bytes to PIL Image
         image = Image.open(io.BytesIO(image_bytes))
         
@@ -114,10 +130,12 @@ def extract_receipt_with_gemini(image_bytes):
 
 If you cannot read certain fields, use null. Return ONLY the JSON, no other text."""
 
-        response = model.generate_content([prompt, image])
+        response = genai_client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[prompt, image]
+        )
         
         # Parse JSON from response
-        import json
         text = response.text.strip()
         # Remove markdown code blocks if present
         if text.startswith("```"):
@@ -158,18 +176,23 @@ if page == "Dashboard":
     with col1:
         st.subheader("💸 Spending by Category")
         df = pd.DataFrame(st.session_state.transactions)
-        expense_df = df[df['type'] == 'expense']
+        expense_df = df[df['type'] == 'Expense']
         if not expense_df.empty:
             category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
             fig = px.pie(category_totals, values='amount', names='category', hole=0.4)
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No expense data available")
     
     with col2:
         st.subheader("📋 Recent Transactions")
-        for t in st.session_state.transactions[:5]:
-            icon = "🔴" if t['type'] == 'expense' else "🟢"
-            sign = "-" if t['type'] == 'expense' else "+"
-            st.markdown(f"{icon} **{t.get('merchant', t['category'])}** - {sign}₹{t['amount']:,.2f}")
+        if st.session_state.transactions:
+            for t in st.session_state.transactions[:5]:
+                icon = "🔴" if t['type'] == 'Expense' else "🟢"
+                sign = "-" if t['type'] == 'Expense' else "+"
+                st.markdown(f"{icon} **{t.get('merchant', t['category'])}** - {sign}₹{t['amount']:,.2f}")
+        else:
+            st.info("No transactions yet")
 
 # Transactions
 elif page == "Transactions":
@@ -178,9 +201,9 @@ elif page == "Transactions":
     with st.expander("➕ Add New Transaction", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            trans_type = st.selectbox("Type", ["expense", "income"])
+            trans_type = st.selectbox("Type", ["Expense", "Income"])
             amount = st.number_input("Amount (₹)", min_value=0.01, step=0.01)
-            categories = EXPENSE_CATEGORIES if trans_type == "expense" else INCOME_CATEGORIES
+            categories = EXPENSE_CATEGORIES if trans_type == "Expense" else INCOME_CATEGORIES
             category = st.selectbox("Category", categories)
         with col2:
             date = st.date_input("Date", datetime.now())
@@ -202,45 +225,54 @@ elif page == "Transactions":
             st.rerun()
     
     st.subheader("All Transactions")
-    for t in st.session_state.transactions:
-        col1, col2, col3 = st.columns([3, 1, 1])
-        with col1:
-            icon = "🔴" if t['type'] == 'expense' else "🟢"
-            st.markdown(f"{icon} **{t.get('merchant', t['category'])}** ({t['category']}) - {t['date']}")
-        with col2:
-            sign = "-" if t['type'] == 'expense' else "+"
-            st.markdown(f"**{sign}₹{t['amount']:,.2f}**")
-        with col3:
-            if st.button("🗑️", key=f"del_{t['id']}"):
-                st.session_state.transactions = [x for x in st.session_state.transactions if x['id'] != t['id']]
-                st.rerun()
+    if st.session_state.transactions:
+        for t in st.session_state.transactions:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                icon = "🔴" if t['type'] == 'Expense' else "🟢"
+                st.markdown(f"{icon} **{t.get('merchant', t['category'])}** ({t['category']}) - {t['date']}")
+            with col2:
+                sign = "-" if t['type'] == 'Expense' else "+"
+                st.markdown(f"**{sign}₹{t['amount']:,.2f}**")
+            with col3:
+                if st.button("🗑️", key=f"del_{t['id']}"):
+                    st.session_state.transactions = [x for x in st.session_state.transactions if x['id'] != t['id']]
+                    st.rerun()
+    else:
+        st.info("No transactions yet")
 
 # Analytics
 elif page == "Analytics":
     st.title("📈 Analytics")
     
     df = pd.DataFrame(st.session_state.transactions)
-    df['date'] = pd.to_datetime(df['date'])
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Spending by Category")
-        expense_df = df[df['type'] == 'expense']
-        if not expense_df.empty:
-            category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
-            fig = px.bar(category_totals, x='category', y='amount', color='category')
+    if df.empty:
+        st.info("No data available for analytics")
+    else:
+        df['date'] = pd.to_datetime(df['date'])
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Spending by Category")
+            expense_df = df[df['type'] == 'Expense']
+            if not expense_df.empty:
+                category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
+                fig = px.bar(category_totals, x='category', y='amount', color='category')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No expense data")
+        
+        with col2:
+            st.subheader("Income vs Expenses")
+            summary_df = df.groupby('type')['amount'].sum().reset_index()
+            fig = px.bar(summary_df, x='type', y='amount', color='type')
             st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("Income vs Expenses")
-        summary_df = df.groupby('type')['amount'].sum().reset_index()
-        fig = px.bar(summary_df, x='type', y='amount', color='type')
-        st.plotly_chart(fig, use_container_width=True)
-    
-    st.subheader("📥 Export Data")
-    csv = df.to_csv(index=False)
-    st.download_button("Download CSV", csv, "transactions.csv", "text/csv")
+        
+        st.subheader("🔥 Export Data")
+        csv = df.to_csv(index=False)
+        st.download_button("Download CSV", csv, "transactions.csv", "text/csv")
 
 # Upload Receipt
 elif page == "Upload Receipt":
@@ -271,7 +303,7 @@ elif page == "Upload Receipt":
                         if st.button("➕ Add as Transaction"):
                             new_trans = {
                                 "id": str(uuid.uuid4()),
-                                "type": "expense",
+                                "type": "Expense",
                                 "amount": float(data.get('amount', 0)),
                                 "category": data.get('category', 'Other'),
                                 "date": data.get('date', str(datetime.now().date())),
@@ -282,43 +314,39 @@ elif page == "Upload Receipt":
                             st.success("Transaction added!")
                             st.rerun()
 
-elif page == "🤖 AI Pilot Chat":
-
-    st.markdown("## 🤖 Pilot AI")
+# Chat with Pilot
+elif page == "Chat with Pilot":
+    st.title("🤖 Chat with Pilot")
     st.caption("Your personal finance assistant")
 
-    # ---- Financial Summary ----
-    df = st.session_state.transactions.copy()
-    income = df[df["type"] == "Income"]["amount"].sum()
-    expenses = df[df["type"] == "Expense"]["amount"].sum()
-    balance = income - expenses
+    # Financial Summary
+    total_income, total_expenses, balance = get_summary()
 
-    with st.container():
-        st.markdown(
-            f"""
-            <div style="
-                background:#f2f2f2;
-                padding:20px;
-                border-radius:16px;
-                margin-bottom:16px;
-            ">
-            👋 <b>Hi! I'm Pilot</b>, your AI finance assistant.  
-            I can help you understand your spending and improve budgeting.
+    st.markdown(
+        f"""
+        <div style="
+            background:#f2f2f2;
+            padding:20px;
+            border-radius:16px;
+            margin-bottom:16px;
+        ">
+        👋 <b>Hi! I'm Pilot</b>, your AI finance assistant.  
+        I can help you understand your spending and improve budgeting.
 
-            <br><br>
-            <b>Here's a quick overview:</b><br>
-            • Total Balance: ₹{balance:,.2f}<br>
-            • Total Income: ₹{income:,.2f}<br>
-            • Total Expenses: ₹{expenses:,.2f}
+        <br><br>
+        <b>Here's a quick overview:</b><br>
+        • Total Balance: ₹{balance:,.2f}<br>
+        • Total Income: ₹{total_income:,.2f}<br>
+        • Total Expenses: ₹{total_expenses:,.2f}
 
-            <br><br>
-            Ask me anything about your finances!
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        <br><br>
+        Ask me anything about your finances!
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    # ---- Suggestion Chips ----
+    # Suggestion Chips
     st.markdown("**Try asking:**")
     col1, col2 = st.columns(2)
 
@@ -334,7 +362,7 @@ elif page == "🤖 AI Pilot Chat":
         if st.button("✨ Summarize my spending this week"):
             st.session_state.quick_query = "Summarize my spending this week"
 
-    # ---- Chat History ----
+    # Chat History
     for msg in st.session_state.chat_history:
         if msg["role"] == "user":
             st.markdown(
@@ -349,10 +377,11 @@ elif page == "🤖 AI Pilot Chat":
                 unsafe_allow_html=True
             )
 
-    # ---- Chat Input ----
+    # Chat Input
     user_input = st.text_input(
         "Ask Pilot about your finances...",
-        value=st.session_state.get("quick_query", "")
+        value=st.session_state.get("quick_query", ""),
+        key="chat_input"
     )
 
     if "quick_query" in st.session_state:
@@ -366,13 +395,7 @@ elif page == "🤖 AI Pilot Chat":
             })
 
             with st.spinner("Pilot is thinking..."):
-                try:
-                    response = st.session_state.gemini_client.get_financial_insights(
-                        st.session_state.transactions,
-                        user_input
-                    )
-                except Exception as e:
-                    response = f"⚠️ Error: {str(e)}"
+                response = chat_with_pilot(user_input)
 
             st.session_state.chat_history.append({
                 "role": "assistant",
