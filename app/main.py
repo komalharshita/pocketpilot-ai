@@ -8,10 +8,14 @@ import os
 import json
 import sys
 
-# Add services directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to path to import services
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 # Import custom services
+<<<<<<< HEAD
 try:
     from services.gemini_service import GeminiClient, get_quick_insight
     GEMINI_AVAILABLE = True
@@ -21,10 +25,39 @@ except Exception as e:
 
 try:
     from services.document_service import DocumentAIClient, MockDocumentAIClient
+=======
+GEMINI_AVAILABLE = False
+DOCUMENT_AI_AVAILABLE = False
+GeminiClient = None
+DocumentAIClient = None
+MockDocumentAIClient = None
+
+try:
+    from services.gemini_service import GeminiClient
+    GEMINI_AVAILABLE = True
+    print("✓ Gemini service loaded successfully")
+except ImportError as e:
+    print(f"⚠ Gemini service not available: {e}")
+    try:
+        from services.gemini_client import GeminiClient
+        GEMINI_AVAILABLE = True
+        print("✓ Gemini service loaded successfully (alternate path)")
+    except ImportError as e2:
+        print(f"⚠ Gemini service not available: {e2}")
+
+try:
+    from services.document_ai_service import DocumentAIClient, MockDocumentAIClient
+>>>>>>> b5e463fac8599b7221b8ad005e25a964a8be5249
     DOCUMENT_AI_AVAILABLE = True
-except Exception as e:
-    DOCUMENT_AI_AVAILABLE = False
-    print(f"Document AI service not available: {e}")
+    print("✓ Document AI service loaded successfully")
+except ImportError as e:
+    print(f"⚠ Document AI service not available: {e}")
+    try:
+        from services.document_ai import DocumentAIClient, MockDocumentAIClient
+        DOCUMENT_AI_AVAILABLE = True
+        print("✓ Document AI service loaded successfully (alternate path)")
+    except ImportError as e2:
+        print(f"⚠ Document AI service not available: {e2}")
 
 # Load environment variables
 load_dotenv()
@@ -185,12 +218,15 @@ with st.sidebar.expander("⚙️ API Configuration", expanded=not st.session_sta
     if st.button("💾 Save Gemini Key", use_container_width=True):
         if gemini_key:
             st.session_state.api_keys['gemini'] = gemini_key
-            try:
-                st.session_state.gemini_client = GeminiClient(gemini_key)
-                st.success("✅ Gemini API connected!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to connect: {str(e)}")
+            if not GEMINI_AVAILABLE:
+                st.error("❌ Gemini service files not found. Please check services/gemini_client.py exists.")
+            else:
+                try:
+                    st.session_state.gemini_client = GeminiClient(gemini_key)
+                    st.success("✅ Gemini API connected!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to connect: {str(e)}")
         else:
             st.error("Please enter an API key")
     
@@ -211,18 +247,24 @@ with st.sidebar.expander("⚙️ API Configuration", expanded=not st.session_sta
         if project_id and processor_id:
             st.session_state.api_keys['project_id'] = project_id
             st.session_state.api_keys['processor_id'] = processor_id
-            try:
-                st.session_state.document_ai_client = DocumentAIClient(
-                    project_id=project_id,
-                    processor_id=processor_id
-                )
-                st.success("✅ Document AI connected!")
-                st.rerun()
-            except Exception as e:
-                st.warning(f"Using mock mode: {str(e)}")
-                st.session_state.document_ai_client = MockDocumentAIClient()
+            if not DOCUMENT_AI_AVAILABLE:
+                st.warning("⚠ Document AI service not found. Check services/document_ai.py exists.")
+            else:
+                try:
+                    st.session_state.document_ai_client = DocumentAIClient(
+                        project_id=project_id,
+                        processor_id=processor_id
+                    )
+                    st.success("✅ Document AI connected!")
+                    st.rerun()
+                except Exception as e:
+                    st.warning(f"Using mock mode: {str(e)}")
+                    if MockDocumentAIClient:
+                        st.session_state.document_ai_client = MockDocumentAIClient()
         else:
             st.info("Using demo mode for Document AI")
+            if MockDocumentAIClient:
+                st.session_state.document_ai_client = MockDocumentAIClient()
 
 st.sidebar.markdown("---")
 
