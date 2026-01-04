@@ -6,6 +6,25 @@ import plotly.graph_objects as go
 from dotenv import load_dotenv
 import os
 import json
+import sys
+
+# Add services directory to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+# Import custom services
+try:
+    from services.gemini_client import GeminiClient, get_quick_insight
+    GEMINI_AVAILABLE = True
+except Exception as e:
+    GEMINI_AVAILABLE = False
+    print(f"Gemini service not available: {e}")
+
+try:
+    from services.document_ai import DocumentAIClient, MockDocumentAIClient
+    DOCUMENT_AI_AVAILABLE = True
+except Exception as e:
+    DOCUMENT_AI_AVAILABLE = False
+    print(f"Document AI service not available: {e}")
 
 # Load environment variables
 load_dotenv()
@@ -40,6 +59,19 @@ st.markdown("""
         border-radius: 0.5rem;
         font-weight: 600;
     }
+    .chat-message {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .user-message {
+        background-color: #E0E7FF;
+        margin-left: 20%;
+    }
+    .assistant-message {
+        background-color: #F3F4F6;
+        margin-right: 20%;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -58,6 +90,34 @@ if 'transactions' not in st.session_state:
 
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
+
+if 'gemini_client' not in st.session_state and GEMINI_AVAILABLE:
+    try:
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if api_key:
+            st.session_state.gemini_client = GeminiClient(api_key)
+        else:
+            st.session_state.gemini_client = None
+    except Exception as e:
+        st.session_state.gemini_client = None
+        print(f"Failed to initialize Gemini client: {e}")
+
+if 'document_ai_client' not in st.session_state and DOCUMENT_AI_AVAILABLE:
+    try:
+        project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+        processor_id = os.getenv('DOCUMENT_AI_PROCESSOR_ID')
+        
+        if project_id and processor_id:
+            st.session_state.document_ai_client = DocumentAIClient(
+                project_id=project_id,
+                processor_id=processor_id
+            )
+        else:
+            # Use mock client for demo
+            st.session_state.document_ai_client = MockDocumentAIClient()
+    except Exception as e:
+        st.session_state.document_ai_client = MockDocumentAIClient()
+        print(f"Using Mock Document AI client: {e}")
 
 # Helper functions
 def add_transaction(transaction_data):
@@ -103,6 +163,15 @@ def get_category_summary():
 # Sidebar Navigation
 st.sidebar.markdown('<h1 style="color: #4F46E5;">💰 PocketPilot AI</h1>', unsafe_allow_html=True)
 st.sidebar.markdown("---")
+
+# API Status indicators
+st.sidebar.markdown("### 🔌 API Status")
+gemini_status = "🟢 Connected" if st.session_state.get('gemini_client') else "🔴 Not configured"
+doc_ai_status = "🟢 Connected" if st.session_state.get('document_ai_client') else "🔴 Not configured"
+st.sidebar.markdown(f"**Gemini AI:** {gemini_status}")
+st.sidebar.markdown(f"**Document AI:** {doc_ai_status}")
+st.sidebar.markdown("---")
+
 page = st.sidebar.radio(
     "Navigate",
     ["📊 Dashboard", "➕ Add Transaction", "📋 Transactions", "📸 Upload Receipt", "🤖 AI Pilot Chat", "📈 Analytics"]
@@ -290,74 +359,257 @@ elif page == "📋 Transactions":
 elif page == "📸 Upload Receipt":
     st.markdown('<p class="main-header">📸 Upload Receipt</p>', unsafe_allow_html=True)
     
-    st.info("🚀 **Coming Soon:** Upload receipts and let Document AI extract transaction details automatically!")
+    # Check Document AI availability
+    if not st.session_state.get('document_ai_client'):
+        st.warning("⚠️ Document AI is not configured. Using demo mode.")
+        st.info("""
+        **To enable real Document AI:**
+        1. Set `GOOGLE_CLOUD_PROJECT` in .env
+        2. Set `DOCUMENT_AI_PROCESSOR_ID` in .env
+        3. Restart the app
+        """)
     
-    uploaded_file = st.file_uploader("Choose a receipt image or PDF", type=['jpg', 'jpeg', 'png', 'pdf'])
+    uploaded_file = st.file_uploader(
+        "Choose a receipt image or PDF",
+        type=['jpg', 'jpeg', 'png', 'pdf'],
+        help="Upload a clear image of your receipt for automatic data extraction"
+    )
     
     if uploaded_file is not None:
-        st.image(uploaded_file, caption="Uploaded Receipt", use_column_width=True)
+        # Display uploaded file
+        if uploaded_file.type.startswith('image'):
+            st.image(uploaded_file, caption="Uploaded Receipt", use_column_width=True)
+        else:
+            st.info(f"📄 PDF uploaded: {uploaded_file.name}")
         
-        if st.button("🔍 Extract Details", use_container_width=True):
-            with st.spinner("Processing receipt with Document AI..."):
-                # Placeholder for Document AI integration
-                st.warning("⚠️ Document AI integration in progress. For now, please add transactions manually.")
-                st.info("""
-                **Next Steps:**
-                1. Set up Google Cloud Project
-                2. Enable Document AI API
-                3. Create a processor for receipts
-                4. Add credentials to .env file
-                """)
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            process_button = st.button("🔍 Extract Details", use_container_width=True, type="primary")
+        with col2:
+            use_mock = st.checkbox("Demo Mode", value=True, help="Use demo data for testing")
+        
+        if process_button:
+            with st.spinner("🔄 Processing receipt with Document AI..."):
+                try:
+                    # Read file content
+                    file_content = uploaded_file.read()
+                    
+                    # Determine MIME type
+                    if uploaded_file.type == 'application/pdf':
+                        mime_type = 'application/pdf'
+                    elif 'png' in uploaded_file.type:
+                        mime_type = 'image/png'
+                    else:
+                        mime_type = 'image/jpeg'
+                    
+                    # Process with Document AI
+                    client = st.session_state.document_ai_client
+                    result = client.process_receipt(file_content, mime_type)
+                    
+                    if result['success']:
+                        st.success("✅ Receipt processed successfully!")
+                        
+                        extracted = result['data']
+                        
+                        # Display extracted data
+                        st.markdown("### 📋 Extracted Information")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Amount", f"₹{extracted['amount']:.2f}" if extracted['amount'] else "Not found")
+                        with col2:
+                            st.metric("Merchant", extracted['merchant'] if extracted['merchant'] else "Not found")
+                        with col3:
+                            st.metric("Category", extracted['category'])
+                        
+                        if extracted['date']:
+                            st.write(f"**Date:** {extracted['date'].strftime('%Y-%m-%d')}")
+                        
+                        st.write(f"**Confidence Score:** {result['confidence']:.1%}")
+                        
+                        # Show items if available
+                        if extracted['items']:
+                            st.markdown("**Items Found:**")
+                            for item in extracted['items'][:5]:  # Show first 5 items
+                                st.write(f"- {item['name']}")
+                        
+                        # Validation
+                        is_valid, issues = client.validate_extraction(extracted)
+                        
+                        if not is_valid:
+                            st.warning("⚠️ Some information is missing or unclear:")
+                            for issue in issues:
+                                st.write(f"- {issue}")
+                        
+                        st.markdown("---")
+                        
+                        # Form to review and add transaction
+                        st.markdown("### ✏️ Review & Add Transaction")
+                        
+                        with st.form("receipt_transaction_form"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                final_amount = st.number_input(
+                                    "Amount (₹)",
+                                    value=float(extracted['amount']) if extracted['amount'] else 0.0,
+                                    min_value=0.0,
+                                    step=10.0
+                                )
+                                final_merchant = st.text_input(
+                                    "Merchant",
+                                    value=extracted['merchant'] if extracted['merchant'] else ""
+                                )
+                                final_category = st.selectbox(
+                                    "Category",
+                                    ["Food", "Transport", "Groceries", "Bills", "Entertainment", "Education", "Health", "Shopping", "Others"],
+                                    index=["Food", "Transport", "Groceries", "Bills", "Entertainment", "Education", "Health", "Shopping", "Others"].index(extracted['category']) if extracted['category'] in ["Food", "Transport", "Groceries", "Bills", "Entertainment", "Education", "Health", "Shopping", "Others"] else 8
+                                )
+                            
+                            with col2:
+                                final_date = st.date_input(
+                                    "Date",
+                                    value=extracted['date'] if extracted['date'] else datetime.today()
+                                )
+                                final_notes = st.text_area(
+                                    "Notes",
+                                    value=f"Auto-extracted from receipt. Confidence: {result['confidence']:.1%}"
+                                )
+                            
+                            submitted = st.form_submit_button("💾 Add Transaction", use_container_width=True)
+                            
+                            if submitted:
+                                if final_amount > 0:
+                                    transaction_data = {
+                                        'type': 'Expense',
+                                        'amount': final_amount,
+                                        'category': final_category,
+                                        'date': pd.to_datetime(final_date),
+                                        'merchant': final_merchant,
+                                        'notes': final_notes
+                                    }
+                                    add_transaction(transaction_data)
+                                    st.success(f"✅ Transaction of ₹{final_amount:,.2f} added successfully!")
+                                    st.balloons()
+                                else:
+                                    st.error("❌ Amount must be greater than 0")
+                    
+                    else:
+                        st.error(f"❌ Failed to process receipt: {result.get('error', 'Unknown error')}")
+                        st.info("Please try with a clearer image or add the transaction manually.")
+                
+                except Exception as e:
+                    st.error(f"❌ Error processing receipt: {str(e)}")
+                    st.info("Please add the transaction manually from the 'Add Transaction' page.")
 
 elif page == "🤖 AI Pilot Chat":
     st.markdown('<p class="main-header">🤖 AI Pilot Assistant</p>', unsafe_allow_html=True)
     
-    st.info("💡 Ask me about your spending habits, get budget advice, or request financial insights!")
-    
-    # Chat interface
-    chat_container = st.container()
-    
-    with chat_container:
-        for message in st.session_state.chat_history:
-            if message['role'] == 'user':
-                st.markdown(f"**You:** {message['content']}")
-            else:
-                st.markdown(f"**🤖 Pilot:** {message['content']}")
-    
-    # Chat input
-    user_input = st.text_input("Ask Pilot a question:", key="chat_input")
-    
-    if st.button("Send", use_container_width=True) and user_input:
-        # Add user message
-        st.session_state.chat_history.append({'role': 'user', 'content': user_input})
+    # Check Gemini availability
+    if not st.session_state.get('gemini_client'):
+        st.error("❌ Gemini API is not configured!")
+        st.info("""
+        **To enable AI Chat:**
+        1. Get your API key from https://makersuite.google.com/app/apikey
+        2. Add `GOOGLE_API_KEY=your_key_here` to your .env file
+        3. Restart the app
+        """)
         
-        # Generate AI response (placeholder)
+        # Show demo interface
+        st.markdown("---")
+        st.markdown("### 💡 Demo Mode - Sample Insights")
+        
         summary = calculate_summary()
         category_summary = get_category_summary()
         
-        # Simple rule-based responses for demo
-        response = f"""Based on your recent transactions:
-        
-📊 **Your Financial Summary:**
+        demo_response = f"""Based on your transaction data, here's what I can see:
+
+📊 **Financial Overview:**
 - Total Income: ₹{summary['total_income']:,.2f}
 - Total Expenses: ₹{summary['total_expenses']:,.2f}
 - Current Balance: ₹{summary['balance']:,.2f}
 
-💡 **Quick Tips:**
-1. Your biggest expense category is {category_summary.index[0] if not category_summary.empty else 'N/A'}
-2. Try to maintain a 50-30-20 budget rule (50% needs, 30% wants, 20% savings)
-3. Consider setting aside ₹{summary['total_income'] * 0.2:,.2f} for savings this month
+💡 **Quick Insights:**
+1. Your top spending category is {category_summary.index[0] if not category_summary.empty else 'N/A'}
+2. You're spending ₹{category_summary.iloc[0] if not category_summary.empty else 0:,.2f} in this category
+3. Consider the 50-30-20 budget rule for better financial health
 
-🎯 **Action Items:**
-- Track daily expenses to identify spending patterns
-- Set category-wise budgets
-- Review your spending weekly
+🎯 **Recommendations:**
+- Track daily expenses to identify patterns
+- Set category-wise monthly budgets
+- Try to save at least 20% of your income
 
-*Note: Connect Gemini API for more personalized insights!*
+*Configure Gemini API for personalized, AI-powered insights!*
 """
+        st.markdown(demo_response)
         
-        st.session_state.chat_history.append({'role': 'assistant', 'content': response})
-        st.rerun()
+    else:
+        st.info("💡 Ask me about your spending habits, get budget advice, or request financial insights!")
+        
+        # Display chat history
+        chat_container = st.container()
+        
+        with chat_container:
+            for message in st.session_state.chat_history:
+                if message['role'] == 'user':
+                    st.markdown(f'<div class="chat-message user-message"><strong>You:</strong><br>{message["content"]}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="chat-message assistant-message"><strong>🤖 Pilot:</strong><br>{message["content"]}</div>', unsafe_allow_html=True)
+        
+        # Quick action buttons
+        st.markdown("### 🎯 Quick Actions")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📊 Spending Summary", use_container_width=True):
+                st.session_state.quick_query = "Give me a summary of my spending this month"
+        with col2:
+            if st.button("💡 Budget Tips", use_container_width=True):
+                st.session_state.quick_query = "Give me 5 actionable tips to reduce my expenses"
+        with col3:
+            if st.button("📈 Trend Analysis", use_container_width=True):
+                st.session_state.quick_query = "Analyze my spending trends and patterns"
+        
+        # Chat input
+        user_input = st.text_input(
+            "Ask Pilot a question:",
+            key="chat_input",
+            placeholder="e.g., How much did I spend on food this month?",
+            value=st.session_state.get('quick_query', '')
+        )
+        
+        # Clear quick query after use
+        if 'quick_query' in st.session_state:
+            del st.session_state.quick_query
+        
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            send_button = st.button("💬 Send", use_container_width=True, type="primary")
+        with col2:
+            if st.button("🗑️ Clear Chat", use_container_width=True):
+                st.session_state.chat_history = []
+                st.rerun()
+        
+        if send_button and user_input:
+            # Add user message
+            st.session_state.chat_history.append({'role': 'user', 'content': user_input})
+            
+            # Generate AI response
+            with st.spinner("🤔 Pilot is thinking..."):
+                try:
+                    client = st.session_state.gemini_client
+                    df = st.session_state.transactions.copy()
+                    
+                    response = client.get_financial_insights(df, user_input)
+                    
+                    st.session_state.chat_history.append({'role': 'assistant', 'content': response})
+                    st.rerun()
+                    
+                except Exception as e:
+                    error_msg = f"⚠️ Sorry, I encountered an error: {str(e)}\n\nPlease check your API key and try again."
+                    st.session_state.chat_history.append({'role': 'assistant', 'content': error_msg})
+                    st.rerun()
 
 elif page == "📈 Analytics":
     st.markdown('<p class="main-header">📈 Advanced Analytics</p>', unsafe_allow_html=True)
