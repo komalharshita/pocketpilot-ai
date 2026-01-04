@@ -12,8 +12,13 @@ if not GEMINI_API_KEY:
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
 
+<<<<<<< HEAD
 # Use a currently supported model
 MODEL_NAME = "gemini-2.5-pro-exp-03-25"
+=======
+# Stable, proven model
+MODEL_NAME = "gemini-2.0-flash"
+>>>>>>> 22464caa84bfcfba97c11fde73e80746f659c46f
 
 
 def chat_with_gemini(prompt: str) -> str:
@@ -30,6 +35,14 @@ def chat_with_gemini(prompt: str) -> str:
         return response.text.strip()
 
     except Exception as e:
+<<<<<<< HEAD
         # Log actual error in Streamlit Cloud logs
         print("Gemini error:", repr(e))
         return "Gemini is currently unavailable. Please try again later."
+=======
+        import traceback
+        traceback.print_exc()
+        st.error(f"Gemini error: {repr(e)}")
+        raise
+
+>>>>>>> 22464caa84bfcfba97c11fde73e80746f659c46f
