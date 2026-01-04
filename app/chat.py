@@ -1,39 +1,55 @@
 # app/chat.py
 
 import streamlit as st
-from services.gemini_service import chat_with_gemini
+from services.firebase import db
+from services.gemini import ask_gemini
 
 
 def chat_page(user):
-    st.subheader("Simple Gemini Chatbot")
+    st.subheader("Ask Gemini About Your Expenses")
 
-    # Initialize chat history (UI only)
-    if "simple_chat" not in st.session_state:
-        st.session_state.simple_chat = []
+    user_id = user["uid"]
 
-    # Display previous messages
-    for msg in st.session_state.simple_chat:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    # Fetch user's receipt texts
+    receipts_ref = (
+        db.collection("receipts")
+        .where("user_id", "==", user_id)
+        .stream()
+    )
 
-    # User input
-    prompt = st.chat_input("Ask anything...")
+    receipt_texts = []
+    for doc in receipts_ref:
+        data = doc.to_dict()
+        text = data.get("text", "")
+        if text:
+            receipt_texts.append(text)
 
-    if prompt:
-        # Show user message
-        st.session_state.simple_chat.append(
-            {"role": "user", "content": prompt}
-        )
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    if not receipt_texts:
+        st.info("Upload receipts first to chat with Gemini.")
+        return
 
-        # Gemini response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                reply = chat_with_gemini(prompt)
-                st.markdown(reply)
+    # Combine receipt text into context
+    context = "\n\n".join(receipt_texts[:3])  # limit context to avoid quota issues
 
-        # Save assistant message
-        st.session_state.simple_chat.append(
-            {"role": "assistant", "content": reply}
-        )
+    user_question = st.text_input("Ask a question about your receipts")
+
+    if st.button("Ask Gemini"):
+        if not user_question.strip():
+            st.warning("Please enter a question.")
+            return
+
+        prompt = f"""
+You are a helpful personal finance assistant.
+
+Here is raw receipt text from a user's expenses:
+{context}
+
+User question:
+{user_question}
+"""
+
+        with st.spinner("Gemini is thinking..."):
+            answer = ask_gemini(prompt)
+
+        st.markdown("### Gemini's Answer")
+        st.write(answer)
