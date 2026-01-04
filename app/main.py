@@ -13,9 +13,9 @@ from datetime import datetime
 import uuid
 
 # Import our services
-from services.firebase_service import FirebaseService
-from services.document_service import DocumentAIService
-from services.gemini_service import GeminiService
+from firebase_service import FirebaseService
+from document_service import DocumentAIService
+from gemini_service import GeminiService
 
 # ============================================================================
 # PAGE CONFIGURATION
