@@ -13,14 +13,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Import custom services
 try:
-    from services.gemini_client import GeminiClient, get_quick_insight
+    from services.gemini_service import GeminiClient, get_quick_insight
     GEMINI_AVAILABLE = True
 except Exception as e:
     GEMINI_AVAILABLE = False
     print(f"Gemini service not available: {e}")
 
 try:
-    from services.document_ai import DocumentAIClient, MockDocumentAIClient
+    from services.document_service import DocumentAIClient, MockDocumentAIClient
     DOCUMENT_AI_AVAILABLE = True
 except Exception as e:
     DOCUMENT_AI_AVAILABLE = False

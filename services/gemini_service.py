@@ -24,7 +24,7 @@ class GeminiClient:
             raise ValueError("GOOGLE_API_KEY not found in environment variables")
         
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
         
     def build_context_prompt(self, transactions_df: pd.DataFrame, user_query: str) -> str:
         """
