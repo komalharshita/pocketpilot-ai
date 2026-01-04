@@ -1,17 +1,19 @@
 # app/auth.py
 
 import streamlit as st
-import pyrebase
+import requests
 
-# Firebase config from secrets
-firebase_config = {
-    "apiKey": st.secrets["FIREBASE_API_KEY"],
-    "authDomain": st.secrets["FIREBASE_AUTH_DOMAIN"],
-    "projectId": st.secrets["FIREBASE_PROJECT_ID"],
-}
+FIREBASE_API_KEY = st.secrets["FIREBASE_API_KEY"]
 
-firebase = pyrebase.initialize_app(firebase_config)
-auth = firebase.auth()
+SIGN_UP_URL = (
+    "https://identitytoolkit.googleapis.com/v1/accounts:signUp"
+    f"?key={FIREBASE_API_KEY}"
+)
+
+SIGN_IN_URL = (
+    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+    f"?key={FIREBASE_API_KEY}"
+)
 
 
 def login_signup():
@@ -22,23 +24,36 @@ def login_signup():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
+    if not email or not password:
+        return
+
+    payload = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+
     if mode == "Login":
         if st.button("Login"):
-            try:
-                user = auth.sign_in_with_email_and_password(email, password)
+            response = requests.post(SIGN_IN_URL, json=payload)
+            data = response.json()
+
+            if "localId" in data:
                 st.session_state.user = {
                     "email": email,
-                    "uid": user["localId"]
+                    "uid": data["localId"]
                 }
                 st.success("Logged in successfully")
                 st.rerun()
-            except Exception:
-                st.error("Invalid email or password")
+            else:
+                st.error(data.get("error", {}).get("message", "Login failed"))
 
     else:
         if st.button("Sign Up"):
-            try:
-                auth.create_user_with_email_and_password(email, password)
+            response = requests.post(SIGN_UP_URL, json=payload)
+            data = response.json()
+
+            if "localId" in data:
                 st.success("Account created. Please log in.")
-            except Exception:
-                st.error("Account creation failed")
+            else:
+                st.error(data.get("error", {}).get("message", "Signup failed"))
