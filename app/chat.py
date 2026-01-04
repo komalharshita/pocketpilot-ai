@@ -18,7 +18,7 @@ def chat_page(user):
 
     user_id = user["localId"]
 
-    # Session state for chat history
+    # Initialize chat history
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
@@ -27,11 +27,11 @@ def chat_page(user):
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # User input
+    # Chat input
     user_query = st.chat_input("Ask about your spending...")
 
     if user_query:
-        # Show user message
+        # Store user message
         st.session_state.chat_history.append(
             {"role": "user", "content": user_query}
         )
@@ -39,7 +39,7 @@ def chat_page(user):
         with st.chat_message("user"):
             st.markdown(user_query)
 
-        # Prepare analytics context
+        # -------- Build analytics context --------
         df = get_transactions_df(user_id)
         basic = compute_basic_metrics(df)
         category = compute_category_totals(df)
@@ -52,13 +52,21 @@ def chat_page(user):
 
         prompt = build_prompt(summary, user_query)
 
-        # Gemini response
+        # Convert Streamlit history → Gemini history format
+        gemini_history = []
+        for msg in st.session_state.chat_history[:-1]:
+            role = "model" if msg["role"] == "assistant" else "user"
+            gemini_history.append(
+                {"role": role, "parts": [msg["content"]]}
+            )
+
+        # -------- Gemini response --------
         with st.chat_message("assistant"):
             with st.spinner("Pilot is thinking..."):
-                response = generate_response(prompt)
+                response = generate_response(prompt, gemini_history)
                 st.markdown(response)
 
-        # Save assistant response
+        # Store assistant response
         st.session_state.chat_history.append(
             {"role": "assistant", "content": response}
         )
