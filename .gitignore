@@ -62,4 +62,4 @@ temp/
 *.tmp
 
 # Uploaded files (optional - keep if you want local backups)
-uploads/
+uploads/serviceAccountKey.json

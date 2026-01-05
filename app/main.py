@@ -1,15 +1,9 @@
 """
 PocketPilot AI - Main Application
 A simple personal finance app with receipt parsing and AI chatbot
-
-Features:
-1. Dashboard - View all receipts
-2. Receipt Upload - Process receipts with Google Document AI
-3. AI Chatbot - Financial assistant powered by Google Gemini
 """
 
 import gradio as gr
-from config.settings import Settings
 from services.firebase_manager import FirebaseManager
 from services.document_ai_processor import DocumentAIProcessor
 from services.gemini_manager import GeminiManager
@@ -17,7 +11,8 @@ from ui.dashboard import create_dashboard_tab
 from ui.receipt_upload import create_receipt_upload_tab
 from ui.chatbot import create_chatbot_tab
 
-# Custom CSS for better UI
+
+# Custom CSS (Gradio 6.x -> applied at launch)
 CUSTOM_CSS = """
 #summary-stats {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -39,101 +34,63 @@ footer {
 }
 """
 
+
 def create_app():
-    """
-    Create and configure the Gradio application
-    
-    Returns:
-        Gradio Blocks interface
-    """
-    
-    print("="*60)
+
+    print("=" * 60)
     print("🚀 Initializing PocketPilot AI...")
-    print("="*60)
-    
+    print("=" * 60)
+
     try:
-        # Initialize services
         print("\n📦 Initializing services...")
         firebase_manager = FirebaseManager()
         doc_ai_processor = DocumentAIProcessor()
         gemini_manager = GeminiManager()
-        
+
         print("\n✅ All services initialized successfully!")
-        print("="*60)
-    
+        print("=" * 60)
+
     except Exception as e:
         print(f"\n❌ Initialization failed: {e}")
-        print("="*60)
         raise
-    
-    # Create Gradio interface
+
     with gr.Blocks(
-        title="PocketPilot AI - Personal Finance Assistant",
-        theme=gr.themes.Soft(
-            primary_hue="purple",
-            secondary_hue="blue",
-            neutral_hue="slate",
-        ),
-        css=CUSTOM_CSS
+        title="PocketPilot AI - Personal Finance Assistant"
     ) as app:
-        
-        # Header
-        gr.Markdown(
-            """
-            # 🚀 PocketPilot AI
-            ### Your Personal Finance Assistant
-            
-            Upload receipts, track spending, and get AI-powered financial insights
-            """
-        )
-        
-        # Create tabs
-        with gr.Tabs() as tabs:
-            with gr.Tab("📊 Dashboard", id="dashboard"):
-                create_dashboard_tab(firebase_manager)
-            
-            with gr.Tab("📤 Upload Receipt", id="upload"):
+
+        gr.Markdown("""
+        # 🚀 PocketPilot AI
+        ### Your Personal Finance Assistant
+        """)
+
+        with gr.Tabs():
+
+            # 📊 Dashboard
+            with gr.Tab("📊 Dashboard"):
+                (
+                    load_dashboard,
+                    receipts_table,
+                    status_msg,
+                    summary_display
+                ) = create_dashboard_tab(firebase_manager)
+
+            # 📤 Upload Receipt
+            with gr.Tab("📤 Upload Receipt"):
                 create_receipt_upload_tab(firebase_manager, doc_ai_processor)
-            
-            with gr.Tab("💬 Financial Assistant", id="chatbot"):
+
+            # 💬 Chatbot
+            with gr.Tab("💬 Financial Assistant"):
                 create_chatbot_tab(gemini_manager, firebase_manager)
-        
-        # Footer
-        gr.Markdown(
-            """
-            ---
-            **PocketPilot AI** | Powered by Google Document AI & Gemini | Built with Gradio
-            
-            ⚠️ **Privacy Note**: This is a demo application. Always review and verify financial data.
-            """
+
+        # ✅ ONLY lifecycle hook allowed in Gradio 6.x
+        app.load(
+            fn=load_dashboard,
+            outputs=[receipts_table, status_msg, summary_display]
         )
-    
+
+        gr.Markdown("""
+        ---
+        **PocketPilot AI** | Powered by Google Document AI & Gemini
+        """)
+
     return app
-
-def main():
-    """Main entry point"""
-    try:
-        # Create app
-        app = create_app()
-        
-        # Launch app
-        print("\n" + "="*60)
-        print("🌐 Launching Gradio application...")
-        print(f"📍 Host: {Settings.APP_HOST}")
-        print(f"🔌 Port: {Settings.APP_PORT}")
-        print("="*60 + "\n")
-        
-        app.launch(
-            server_name=Settings.APP_HOST,
-            server_port=Settings.APP_PORT,
-            share=False,  # Set to True if you want a public URL
-            show_error=True,
-            quiet=False
-        )
-    
-    except Exception as e:
-        print(f"\n❌ Application failed to start: {e}")
-        raise
-
-if __name__ == "__main__":
-    main()

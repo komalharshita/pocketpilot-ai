@@ -1,5 +1,6 @@
 # UI Framework
-gradio==4.44.0
+gradio>=4.44.0
+huggingface_hub>=0.23
 
 # Google Cloud Services
 google-cloud-documentai==2.27.0
@@ -15,3 +16,4 @@ python-dotenv==1.0.1
 # Utilities
 Pillow==10.3.0
 pandas==2.2.2
+
