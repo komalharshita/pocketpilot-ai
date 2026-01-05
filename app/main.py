@@ -7,7 +7,7 @@ from services.receipt_service import save_receipt
 from services.document_ai_service import extract_text_from_receipt
 from services.receipt_parser import parse_receipt_text
 from utils.charts import monthly_expense_chart, category_expense_chart
-from services.chatbot_service import generate_chat_response
+from services.chatbot_service import chat_with_pocketpilot
 
 # ----------- BASIC HANDLERS -----------
 
@@ -85,7 +85,7 @@ def save_receipt_expense(merchant, date, amount, category):
 def handle_chat(query):
     if not query:
         return "Please ask a question."
-    return generate_chat_response(query)
+    return chat_with_pocketpilot(query)
 
 
 # ================= UI =================
