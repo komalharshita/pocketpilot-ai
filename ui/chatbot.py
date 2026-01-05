@@ -20,37 +20,23 @@ def create_chatbot_tab(gemini_manager: GeminiManager, firebase_manager: Firebase
         Gradio column component
     """
     
-    def respond(message: str, chat_history: List[Tuple[str, str]]) -> Tuple[str, List[Tuple[str, str]]]:
-        """
-        Generate chatbot response
-        
-        Args:
-            message: User's input message
-            chat_history: List of (user_msg, bot_msg) tuples
-        
-        Returns:
-            Tuple of (empty_string, updated_chat_history)
-        """
+    def respond(message, chat_history):
+        if not message or message.strip() == "":
+            return "", chat_history
+
         try:
-            if not message or message.strip() == "":
-                return "", chat_history
-            
-            # Fetch receipt context for personalized responses
             receipts = firebase_manager.get_all_receipts()
-            
-            # Generate response using Gemini
             bot_response = gemini_manager.generate_response(message, receipts)
-            
-            # Update chat history
+
             chat_history.append((message, bot_response))
-            
             return "", chat_history
-        
-        except Exception as e:
-            error_response = f"I apologize, but I encountered an error: {str(e)}"
-            chat_history.append((message, error_response))
+
+        except Exception:
+            chat_history.append(
+                (message, "Sorry — something went wrong. Please try again.")
+            )
             return "", chat_history
-    
+
     def clear_chat():
         """Clear chat history"""
         return []
@@ -62,9 +48,7 @@ def create_chatbot_tab(gemini_manager: GeminiManager, firebase_manager: Firebase
         # Chatbot interface
         chatbot = gr.Chatbot(
             label="PocketPilot AI",
-            height=500,
-            bubble_full_width=False,
-            avatar_images=(None, "🤖")
+            height=500
         )
         
         # Input row
