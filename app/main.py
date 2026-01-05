@@ -1,175 +1,139 @@
+"""
+PocketPilot AI - Main Application
+A simple personal finance app with receipt parsing and AI chatbot
+
+Features:
+1. Dashboard - View all receipts
+2. Receipt Upload - Process receipts with Google Document AI
+3. AI Chatbot - Financial assistant powered by Google Gemini
+"""
+
 import gradio as gr
-import pandas as pd
+from config.settings import Settings
+from services.firebase_manager import FirebaseManager
+from services.document_ai_processor import DocumentAIProcessor
+from services.gemini_manager import GeminiManager
+from ui.dashboard import create_dashboard_tab
+from ui.receipt_upload import create_receipt_upload_tab
+from ui.chatbot import create_chatbot_tab
 
-# ----------- SERVICES & UTILITIES -----------
-from services.expense_manager import load_expenses, add_expense
-from services.receipt_service import save_receipt
-from services.document_ai_service import extract_text_from_receipt
-from services.receipt_parser import parse_receipt_text
-from utils.charts import monthly_expense_chart, category_expense_chart
-from services.chatbot_service import chat_with_pocketpilot
+# Custom CSS for better UI
+CUSTOM_CSS = """
+#summary-stats {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
 
-# ----------- BASIC HANDLERS -----------
+.gradio-container {
+    max-width: 1200px !important;
+}
 
-def check_status():
-    return "PocketPilot AI is running successfully!"
+footer {
+    display: none !important;
+}
+"""
 
-
-# ----------- EXPENSES -----------
-
-def get_expenses():
-    df = load_expenses()
-    if df is None or df.empty:
-        return pd.DataFrame(
-            columns=["id", "date", "type", "amount", "category", "merchant", "notes"]
-        )
-    return df
-
-
-# ----------- DASHBOARD -----------
-
-def load_dashboard():
-    df = load_expenses()
-    bar = monthly_expense_chart(df)
-    pie = category_expense_chart(df)
-    return bar, pie
-
-
-# ----------- RECEIPT OCR & PARSING -----------
-
-def handle_receipt_ocr(file):
+def create_app():
     """
-    Upload → OCR → parse structured fields
-    """
-    if file is None:
-        return "", "", None, ""
-
-    # Save uploaded file locally
-    saved_path = save_receipt(file)
-
-    text = extract_text_from_receipt(
-        file_path=saved_path,
-        project_id="YOUR_PROJECT_ID",
-        location="YOUR_LOCATION",
-        processor_id="YOUR_PROCESSOR_ID"
-    )
-
-    data = parse_receipt_text(text)
-
-    return (
-        data.get("merchant", ""),
-        data.get("date", ""),
-        data.get("amount", None),
-        data.get("category", "Uncategorized")
-    )
-
-
-# ----------- SAVE RECEIPT AS EXPENSE -----------
-
-def save_receipt_expense(merchant, date, amount, category):
-    if not merchant or amount is None:
-        return "❌ Merchant and amount are required."
-
-    add_expense(
-        expense_type="expense",
-        amount=amount,
-        category=category or "Uncategorized",
-        merchant=merchant,
-        notes="Added via receipt"
-    )
-
-    return "✅ Expense saved successfully!"
-
-# -------- GEMINI CHAT --------
-
-def handle_chat(query):
-    if not query:
-        return "Please ask a question."
-    return chat_with_pocketpilot(query)
-
-
-# ================= UI =================
-
-with gr.Blocks(title="PocketPilot AI") as app:
-    gr.Markdown("# 💰 PocketPilot AI")
-    gr.Markdown("Your personal finance assistant")
-
-    # ---------- HOME ----------
-    with gr.Tab("Home"):
-        status_box = gr.Textbox(label="App Status", interactive=False)
-        check_button = gr.Button("Check Status")
-        check_button.click(check_status, outputs=status_box)
-
-    # ---------- EXPENSES ----------
-    with gr.Tab("Expenses"):
-        gr.Markdown("### 📊 Expense Records")
-
-        expenses_table = gr.Dataframe(
-            interactive=False,
-            wrap=True
-        )
-
-        refresh_button = gr.Button("Load Expenses")
-        refresh_button.click(get_expenses, outputs=expenses_table)
-
-    # ---------- DASHBOARD ----------
-    with gr.Tab("Dashboard"):
-        gr.Markdown("## 📈 Spending Overview")
-
-        monthly_chart = gr.Plot()
-        category_chart = gr.Plot()
-
-        load_button = gr.Button("Load Dashboard")
-        load_button.click(
-            fn=load_dashboard,
-            outputs=[monthly_chart, category_chart]
-        )
-
-    # ---------- UPLOAD RECEIPT ----------
-    with gr.Tab("Upload Receipt"):
-        gr.Markdown("## 🧾 Upload, Extract & Save Receipt")
-
-        receipt_file = gr.File(
-            label="Upload Receipt",
-            file_types=[".png", ".jpg", ".jpeg", ".pdf"]
-        )
-
-        merchant = gr.Textbox(label="Merchant")
-        date = gr.Textbox(label="Date (YYYY-MM-DD)")
-        amount = gr.Number(label="Amount")
-        category = gr.Textbox(label="Category")
-
-        extract_button = gr.Button("Extract Data")
-        save_button = gr.Button("Save Expense")
-
-        status = gr.Textbox(label="Status", interactive=False)
-
-        extract_button.click(
-            fn=handle_receipt_ocr,
-            inputs=receipt_file,
-            outputs=[merchant, date, amount, category]
-        )
-
-        save_button.click(
-            fn=save_receipt_expense,
-            inputs=[merchant, date, amount, category],
-            outputs=status
-        )
-
-    # ---- GEMINI CHAT ----
+    Create and configure the Gradio application
     
-    with gr.Tab("Chat with PocketPilot"):
-        user_query = gr.Textbox(
-            label="Ask PocketPilot",
-            placeholder="e.g. Where did I spend the most?"
+    Returns:
+        Gradio Blocks interface
+    """
+    
+    print("="*60)
+    print("🚀 Initializing PocketPilot AI...")
+    print("="*60)
+    
+    try:
+        # Initialize services
+        print("\n📦 Initializing services...")
+        firebase_manager = FirebaseManager()
+        doc_ai_processor = DocumentAIProcessor()
+        gemini_manager = GeminiManager()
+        
+        print("\n✅ All services initialized successfully!")
+        print("="*60)
+    
+    except Exception as e:
+        print(f"\n❌ Initialization failed: {e}")
+        print("="*60)
+        raise
+    
+    # Create Gradio interface
+    with gr.Blocks(
+        title="PocketPilot AI - Personal Finance Assistant",
+        theme=gr.themes.Soft(
+            primary_hue="purple",
+            secondary_hue="blue",
+            neutral_hue="slate",
+        ),
+        css=CUSTOM_CSS
+    ) as app:
+        
+        # Header
+        gr.Markdown(
+            """
+            # 🚀 PocketPilot AI
+            ### Your Personal Finance Assistant
+            
+            Upload receipts, track spending, and get AI-powered financial insights
+            """
         )
-        chat_response = gr.Textbox(lines=8, label="Response")
-
-        gr.Button("Ask").click(
-            handle_chat,
-            inputs=user_query,
-            outputs=chat_response
+        
+        # Create tabs
+        with gr.Tabs() as tabs:
+            with gr.Tab("📊 Dashboard", id="dashboard"):
+                create_dashboard_tab(firebase_manager)
+            
+            with gr.Tab("📤 Upload Receipt", id="upload"):
+                create_receipt_upload_tab(firebase_manager, doc_ai_processor)
+            
+            with gr.Tab("💬 Financial Assistant", id="chatbot"):
+                create_chatbot_tab(gemini_manager, firebase_manager)
+        
+        # Footer
+        gr.Markdown(
+            """
+            ---
+            **PocketPilot AI** | Powered by Google Document AI & Gemini | Built with Gradio
+            
+            ⚠️ **Privacy Note**: This is a demo application. Always review and verify financial data.
+            """
         )
+    
+    return app
 
-# ----------- RUN APP -----------
-app.launch()
+def main():
+    """Main entry point"""
+    try:
+        # Create app
+        app = create_app()
+        
+        # Launch app
+        print("\n" + "="*60)
+        print("🌐 Launching Gradio application...")
+        print(f"📍 Host: {Settings.APP_HOST}")
+        print(f"🔌 Port: {Settings.APP_PORT}")
+        print("="*60 + "\n")
+        
+        app.launch(
+            server_name=Settings.APP_HOST,
+            server_port=Settings.APP_PORT,
+            share=False,  # Set to True if you want a public URL
+            show_error=True,
+            quiet=False
+        )
+    
+    except Exception as e:
+        print(f"\n❌ Application failed to start: {e}")
+        raise
+
+if __name__ == "__main__":
+    main()

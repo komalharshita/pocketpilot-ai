@@ -2,17 +2,14 @@
 # PocketPilot AI - Git Ignore File
 # ==============================================================================
 
-# Secrets and Configuration
-.streamlit/secrets.toml
+# Environment variables
 .env
-*.key
-*.json
-!package.json
-!requirements.txt
+.env.local
+.env.*.local
 
-# Firebase
-firebase-adminsdk-*.json
+# Firebase credentials
 serviceAccountKey.json
+*serviceAccount*.json
 
 # Python
 __pycache__/
@@ -32,20 +29,18 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual Environments
+# Virtual environments
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
@@ -53,29 +48,18 @@ venv.bak/
 *~
 .DS_Store
 
-# Jupyter Notebooks
-.ipynb_checkpoints
-*.ipynb
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
+# Gradio
+gradio_cached_examples/
+flagged/
 
 # Logs
 *.log
 logs/
 
 # Temporary files
-*.tmp
-*.temp
 tmp/
 temp/
+*.tmp
 
-# OS
-Thumbs.db
-.DS_Store
-
-# Streamlit
-.streamlit/config.toml
+# Uploaded files (optional - keep if you want local backups)
+uploads/

@@ -1,6 +1,17 @@
-gradio
-pandas
-plotly
-python-dotenv
-google-generativeai
-Pillow
+# UI Framework
+gradio==4.44.0
+
+# Google Cloud Services
+google-cloud-documentai==2.27.0
+google-cloud-storage==2.14.0
+google-generativeai==0.8.3
+
+# Firebase
+firebase-admin==6.5.0
+
+# Environment Management
+python-dotenv==1.0.1
+
+# Utilities
+Pillow==10.3.0
+pandas==2.2.2
