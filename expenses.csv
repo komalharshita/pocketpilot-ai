@@ -1,0 +1,7 @@
+id,date,type,amount,category,merchant,notes
+1a2b3c4d,2026-01-01,expense,120,Food,Campus Canteen,Lunch with friends
+2b3c4d5e,2026-01-02,expense,45,Food,Tea Stall,Evening tea
+3c4d5e6f,2026-01-02,expense,300,Transport,Bus Pass,Monthly bus recharge
+4d5e6f7g,2026-01-03,expense,550,Books,Book Store,DSA reference book
+5e6f7g8h,2026-01-04,expense,200,Entertainment,Movie Theatre,Weekend movie
+6f7g8h9i,2026-01-05,income,3000,Allowance,Parents,Monthly pocket money

@@ -22,6 +22,9 @@
     "server": "streamlit run app/main.py --server.enableCORS false --server.enableXsrfProtection false"
   },
   "portsAttributes": {
+    "7860": {
+      "label": "my website ai"
+    },
     "8501": {
       "label": "Application",
       "onAutoForward": "openPreview"
