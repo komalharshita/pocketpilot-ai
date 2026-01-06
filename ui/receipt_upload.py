@@ -22,19 +22,22 @@ def create_receipt_upload_tab(
 ):
     """
     Receipt upload tab with demo Document AI
+    Returns a trigger signal to refresh dashboard after upload
     """
+
+    upload_trigger = gr.State(False)  # 🔑 used for auto-refresh
 
     def process_receipt(file):
         try:
             if not file:
-                return create_error_message("No file uploaded"), ""
+                return create_error_message("No file uploaded"), "", False
 
             file_path = file
             file_name = os.path.basename(file_path)
 
             is_valid, msg = validate_file(file_path)
             if not is_valid:
-                return create_error_message(msg), ""
+                return create_error_message(msg), "", False
 
             # DEMO Document AI processing
             receipt_data = doc_ai_processor.process_receipt(
@@ -44,7 +47,7 @@ def create_receipt_upload_tab(
 
             receipt_data["original_filename"] = file_name
 
-            doc_id = firebase_manager.save_receipt_data(receipt_data)
+            firebase_manager.save_receipt_data(receipt_data)
 
             result_text = f"""
 ### ✅ Receipt Processed (Demo Mode)
@@ -55,17 +58,18 @@ def create_receipt_upload_tab(
 **Category:** {receipt_data.get('category')}
 **Confidence:** {receipt_data.get('confidence'):.0%}
 
-ℹ️ **Document AI is not available in the free tier.**  
-Users can integrate and experiment with the real API on their own.
+ℹ️ **Document AI is not available in the free tier.**
+Users can integrate the real API on their own.
 """
 
             return (
                 create_success_message(f"Receipt '{file_name}' processed successfully"),
-                result_text
+                result_text,
+                True  # 🔥 trigger dashboard refresh
             )
 
         except Exception as e:
-            return create_error_message(str(e)), ""
+            return create_error_message(str(e)), "", False
 
     with gr.Column():
         gr.Markdown("# 📤 Upload Receipt")
@@ -90,5 +94,7 @@ Users can integrate and experiment with the real API on their own.
         upload_button.click(
             fn=process_receipt,
             inputs=[file_input],
-            outputs=[status_message, result_display]
+            outputs=[status_message, result_display, upload_trigger]
         )
+
+    return upload_trigger
