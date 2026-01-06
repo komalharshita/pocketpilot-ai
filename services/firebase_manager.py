@@ -1,13 +1,14 @@
 """
 Firebase Manager
 Handles Firestore operations
+(Railway / cloud-safe version using env-based credentials)
 """
 
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
 from typing import Dict, List, Optional
-import uuid
+import json
 from config.settings import Settings
 
 
@@ -17,9 +18,11 @@ class FirebaseManager:
     def __init__(self):
         try:
             if not firebase_admin._apps:
-                cred = credentials.Certificate(
-                    Settings.FIREBASE_SERVICE_ACCOUNT_PATH
+                # Load credentials from environment variable (Railway-safe)
+                service_account_info = json.loads(
+                    Settings.FIREBASE_SERVICE_ACCOUNT_JSON
                 )
+                cred = credentials.Certificate(service_account_info)
                 firebase_admin.initialize_app(cred)
 
             self.db = firestore.client()
