@@ -18,31 +18,36 @@ from utils.helpers import (
 
 def create_receipt_upload_tab(
     firebase_manager: FirebaseManager,
-    doc_ai_processor: DocumentAIProcessor,
-    refresh_dashboard_fn
+    doc_ai_processor: DocumentAIProcessor
 ):
-    """Receipt upload tab with auto-refresh"""
-    
-    def process_receipt(file, current_trigger):
+    """
+    Receipt upload tab
+    NOTE:
+    - Does NOT handle dashboard refresh itself
+    - Returns the upload event so main.py can chain .then(load_dashboard)
+    """
+
+    def process_receipt(file):
         try:
             if not file:
-                return create_error_message("No file uploaded"), "", current_trigger
-            
+                return create_error_message("No file uploaded"), ""
+
             file_path = file
             file_name = os.path.basename(file_path)
-            
+
             is_valid, msg = validate_file(file_path)
             if not is_valid:
-                return create_error_message(msg), "", current_trigger
-            
+                return create_error_message(msg), ""
+
+            # DEMO Document AI processing (service untouched)
             receipt_data = doc_ai_processor.process_receipt(
                 file_path,
                 get_mime_type(file_path)
             )
-            
+
             receipt_data["original_filename"] = file_name
-            doc_id = firebase_manager.save_receipt_data(receipt_data)
-            
+            firebase_manager.save_receipt_data(receipt_data)
+
             result_text = f"""
 ### ✅ Receipt Processed Successfully
 
@@ -56,49 +61,36 @@ def create_receipt_upload_tab(
 
 ℹ️ *Document AI is demo-based for free-tier compatibility. Real API integration available.*
 """
-            
-            new_trigger = current_trigger + 1
-            
             return (
                 create_success_message(f"Receipt '{file_name}' processed"),
-                result_text,
-                new_trigger
+                result_text
             )
-            
+
         except Exception as e:
-            return create_error_message(str(e)), "", current_trigger
-    
+            return create_error_message(str(e)), ""
+
     with gr.Column():
         gr.Markdown("# 📤 Upload Receipt")
         gr.Markdown("*Upload receipt images or PDFs for automatic data extraction*")
-        
+
         file_input = gr.File(
             label="Select Receipt File (JPG, PNG, PDF)",
             type="filepath"
         )
-        
+
         upload_button = gr.Button(
             "🚀 Process Receipt",
             variant="primary"
         )
-        
+
         status_message = gr.Markdown("")
         result_display = gr.Markdown("")
-        
-        upload_button.click(
+
+        # 🔑 Return this event so main.py can attach dashboard refresh
+        upload_event = upload_button.click(
             fn=process_receipt,
-            inputs=[file_input, gr.State(value=0)],
-            outputs=[status_message, result_display, gr.State()]
-        ).then(
-            fn=refresh_dashboard_fn,
-            inputs=[gr.State()],
-            outputs=[
-                gr.Dataframe(),
-                gr.Markdown(),
-                gr.Markdown(),
-                gr.BarPlot(),
-                gr.LinePlot(),
-                gr.BarPlot(),
-                gr.State()
-            ]
+            inputs=[file_input],
+            outputs=[status_message, result_display]
         )
+
+    return upload_event

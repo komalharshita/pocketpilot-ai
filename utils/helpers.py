@@ -51,22 +51,23 @@ def format_date(date_str: str) -> str:
         return date_str
 
 def format_receipts_for_display(receipts: List[Dict]) -> List[List]:
-    """Format receipt data for Gradio table display"""
-    if not receipts:
-        return []
-    
-    formatted_rows = []
-    for receipt in receipts:
-        row = [
-            receipt.get('date', 'Unknown'),
-            receipt.get('merchant', 'Unknown'),
-            format_currency(receipt.get('amount', 0)),
-            receipt.get('category', 'Other'),
-            receipt.get('id', 'N/A')
-        ]
-        formatted_rows.append(row)
-    
-    return formatted_rows
+    """
+    Format receipt data for Gradio table display
+    Assumes dashboard already normalized the schema.
+    """
+    rows = []
+
+    for r in receipts:
+        rows.append([
+            r["date"],
+            r["merchant"],
+            format_currency(r["amount"]),
+            r["category"],
+            r["id"]
+        ])
+
+    return rows
+
 
 def calculate_spending_summary(receipts: List[Dict]) -> Dict:
     """Calculate spending summary from receipts"""
