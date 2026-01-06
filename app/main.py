@@ -21,6 +21,15 @@ CUSTOM_CSS = """
     --text-color: #eaf6ff;
 }
 
+#header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
 body, .gradio-container {
     background: var(--background) !important;
     color: var(--text-color) !important;
@@ -109,14 +118,21 @@ def create_app():
     print("=" * 60)
 
     with gr.Blocks(
-        title="PocketPilot AI - Personal Finance Assistant",
+        title="PocketPilot AI",
         css=CUSTOM_CSS
     ) as app:
 
-        gr.Markdown("""
-        # PocketPilot AI
-        ### *Your AI-Powered Personal Finance Assistant*
-        """)
+        with gr.Column(elem_id="header"):
+            gr.Image(
+                value="utils/PocketPilot.png",
+                show_label=False,
+                interactive=False,
+                height=160
+            )
+            gr.Markdown("""
+            ## PocketPilot AI  
+            *Your AI-Powered Personal Finance Assistant*
+            """)
 
         with gr.Tabs():
 

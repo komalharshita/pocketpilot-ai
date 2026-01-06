@@ -42,9 +42,9 @@ class DocumentAIProcessor:
 
         return {
             "merchant_name": random.choice(merchants),
-            "transaction_date": "2025-01-05",
-            "total_amount": round(random.uniform(10, 150), 2),
-            "currency": "USD",
+            "transaction_date": "2025-01-07",
+            "total_amount": round(random.uniform(50, 1500), 2),
+            "currency": "INR",
             "category": random.choice(categories),
             "raw_text": "Demo receipt text extracted by mock Document AI",
             "confidence": 0.90

@@ -139,19 +139,33 @@ def create_dashboard_tab(firebase_manager: FirebaseManager):
         category_chart = gr.BarPlot(
             x="category",
             y="amount",
+            color="category",              
+            color_map={
+                "Dining": "#1ec9ff",
+                "Groceries": "#2a7cff",
+                "Shopping": "#7c7cff",
+                "Transportation": "#00c2a8",
+                "Other": "#8892b0"
+            },
             title="Spending by Category",
             x_title="Category",
-            y_title="Amount (₹)",
-            color="#1ec9ff"
+            y_title="Amount (₹)"
         )
 
         merchant_chart = gr.BarPlot(
             x="merchant",
             y="amount",
+            color="merchant",              
+            color_map={
+                "Amazon": "#1ec9ff",
+                "Starbucks": "#2a7cff",
+                "Zomato": "#6b6eff",
+                "Uber": "#9e00c2",
+                "Walmart": "#f357fe"
+            },
             title="Spending by Merchant",
             x_title="Merchant",
-            y_title="Amount (₹)",
-            color="#2a7cff"
+            y_title="Amount (₹)"
         )
 
     time_chart = gr.LinePlot(
