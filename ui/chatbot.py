@@ -1,26 +1,22 @@
-# =========================
-# File: ui/chatbot.py
-# =========================
-"""
-Pilot Chatbot UI
-"""
-
 import gradio as gr
 from services.gemini_manager import GeminiManager
 from services.firebase_manager import FirebaseManager
+
 
 def create_chatbot_tab(
     gemini_manager: GeminiManager,
     firebase_manager: FirebaseManager
 ):
 
-    def respond(message, chat_history):
-        if not message.strip():
+    def respond(user_message, chat_history):
+        if not user_message or user_message.strip() == "":
             return "", chat_history
 
-        receipts = firebase_manager.get_all_receipts()
-        reply = gemini_manager.generate_response(message, receipts)
-        chat_history.append((message, reply))
+        reply = gemini_manager.generate_response(user_message)
+
+        chat_history.append({"role": "user", "content": user_message})
+        chat_history.append({"role": "assistant", "content": reply})
+
         return "", chat_history
 
     def clear_chat():
@@ -33,14 +29,27 @@ def create_chatbot_tab(
         chatbot = gr.Chatbot(label="Pilot", height=500)
 
         with gr.Row():
-            msg = gr.Textbox(
-                label="Your Message",
-                placeholder="Ask Pilot about your spending..."
+            message_box = gr.Textbox(
+                placeholder="Ask Pilot about your finances...",
+                label="Your Message"
             )
-            send = gr.Button("Send", variant="primary")
+            send_button = gr.Button("Send", variant="primary")
 
-        clear = gr.Button("🗑️ Clear Conversation")
+        clear_button = gr.Button("🗑️ Clear Conversation")
 
-        send.click(respond, [msg, chatbot], [msg, chatbot])
-        msg.submit(respond, [msg, chatbot], [msg, chatbot])
-        clear.click(clear_chat, outputs=[chatbot])
+        send_button.click(
+            fn=respond,
+            inputs=[message_box, chatbot],
+            outputs=[message_box, chatbot]
+        )
+
+        message_box.submit(
+            fn=respond,
+            inputs=[message_box, chatbot],
+            outputs=[message_box, chatbot]
+        )
+
+        clear_button.click(
+            fn=clear_chat,
+            outputs=[chatbot]
+        )

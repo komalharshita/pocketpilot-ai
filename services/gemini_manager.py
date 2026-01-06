@@ -1,45 +1,48 @@
-# =========================
-# File: services/gemini_manager.py
-# =========================
 """
-Gemini AI Manager for Pilot (Chatbot)
-Stateless and Gradio-safe
+Gemini Manager for Pilot
+STABLE implementation using google-generativeai
 """
 
-from google import genai
-from typing import List, Dict
+import google.generativeai as genai
 from config.settings import Settings
+
 
 class GeminiManager:
     def __init__(self):
-        self.client = genai.Client(api_key=Settings.GEMINI_API_KEY)
-        self.model = Settings.GEMINI_MODEL
+        # Configure API key
+        genai.configure(api_key=Settings.GEMINI_API_KEY)
 
-    def generate_response(
-        self,
-        user_message: str,
-        receipt_context: List[Dict] = None
-    ) -> str:
+        # Initialize model
+        self.model = genai.GenerativeModel(Settings.GEMINI_MODEL)
+
+        print("✓ Gemini initialized (google-generativeai)")
+
+    def generate_response(self, user_message: str) -> str:
+        """
+        TEMP DEBUG VERSION
+        Prints real Gemini error to terminal
+        """
 
         prompt = (
             "You are Pilot, a helpful personal finance assistant.\n"
-            "Answer clearly, simply, and responsibly.\n\n"
+            "Answer clearly and simply.\n\n"
+            f"User question: {user_message}"
         )
 
-        if receipt_context:
-            total = sum(r.get("total_amount", 0) for r in receipt_context)
-            prompt += (
-                f"User has {len(receipt_context)} receipts. "
-                f"Total spent: ${total:.2f}.\n\n"
-            )
-
-        prompt += f"User question: {user_message}"
-
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[{"role": "user", "content": prompt}]
-            )
+            response = self.model.generate_content(prompt)
+
+            print("✅ RAW GEMINI RESPONSE:", response)
+
+            if not response or not response.text:
+                return "No text returned from Gemini."
+
             return response.text.strip()
-        except Exception:
-            return "Sorry — Pilot ran into an error. Please try again."
+
+        except Exception as e:
+            print("🔥🔥🔥 REAL GEMINI ERROR 🔥🔥🔥")
+            print(type(e))
+            print(e)
+            print("🔥🔥🔥 END ERROR 🔥🔥🔥")
+
+            return "Gemini API failed. Check terminal logs."

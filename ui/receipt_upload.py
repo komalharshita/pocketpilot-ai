@@ -1,8 +1,6 @@
-# =========================
-# File: ui/receipt_upload.py
-# =========================
 """
-Receipt Upload UI (Demo Document AI)
+Receipt Upload UI
+Uses DEMO Document AI (free-tier safe)
 """
 
 import gradio as gr
@@ -17,51 +15,80 @@ from utils.helpers import (
     create_error_message
 )
 
+
 def create_receipt_upload_tab(
     firebase_manager: FirebaseManager,
     doc_ai_processor: DocumentAIProcessor
 ):
+    """
+    Receipt upload tab with demo Document AI
+    """
 
     def process_receipt(file):
-        if not file:
-            return create_error_message("No file uploaded"), ""
+        try:
+            if not file:
+                return create_error_message("No file uploaded"), ""
 
-        file_path = file
-        valid, msg = validate_file(file_path)
-        if not valid:
-            return create_error_message(msg), ""
+            file_path = file
+            file_name = os.path.basename(file_path)
 
-        receipt_data = doc_ai_processor.process_receipt(
-            file_path, get_mime_type(file_path)
-        )
+            is_valid, msg = validate_file(file_path)
+            if not is_valid:
+                return create_error_message(msg), ""
 
-        receipt_data["original_filename"] = os.path.basename(file_path)
-        doc_id = firebase_manager.save_receipt_data(receipt_data)
+            # DEMO Document AI processing
+            receipt_data = doc_ai_processor.process_receipt(
+                file_path,
+                get_mime_type(file_path)
+            )
 
-        result = f"""
+            receipt_data["original_filename"] = file_name
+
+            doc_id = firebase_manager.save_receipt_data(receipt_data)
+
+            result_text = f"""
 ### ✅ Receipt Processed (Demo Mode)
 
-**Merchant:** {receipt_data['merchant_name']}
-**Amount:** {format_currency(receipt_data['total_amount'])}
-**Category:** {receipt_data['category']}
+**Merchant:** {receipt_data.get('merchant_name')}
+**Date:** {receipt_data.get('transaction_date')}
+**Amount:** {format_currency(receipt_data.get('total_amount'))}
+**Category:** {receipt_data.get('category')}
+**Confidence:** {receipt_data.get('confidence'):.0%}
 
-ℹ️ Document AI is not available in the free tier.
-You can integrate the real API on your own.
+ℹ️ **Document AI is not available in the free tier.**  
+Users can integrate and experiment with the real API on their own.
 """
 
-        return create_success_message("Receipt processed (demo)"), result
+            return (
+                create_success_message(f"Receipt '{file_name}' processed successfully"),
+                result_text
+            )
+
+        except Exception as e:
+            return create_error_message(str(e)), ""
 
     with gr.Column():
         gr.Markdown("# 📤 Upload Receipt")
         gr.Markdown(
             "_Document AI is demo-based. "
-            "Real API requires paid Google Cloud._"
+            "Real Google Document AI requires a paid plan._"
         )
 
-        file_input = gr.File(type="filepath")
-        btn = gr.Button("Process Receipt", variant="primary")
+        file_input = gr.File(
+            label="Upload receipt (JPG, PNG, PDF)",
+            type="filepath"
+        )
 
-        status = gr.Markdown()
-        output = gr.Markdown()
+        upload_button = gr.Button(
+            "🚀 Process Receipt",
+            variant="primary"
+        )
 
-        btn.click(process_receipt, [file_input], [status, output])
+        status_message = gr.Markdown("")
+        result_display = gr.Markdown("")
+
+        upload_button.click(
+            fn=process_receipt,
+            inputs=[file_input],
+            outputs=[status_message, result_display]
+        )
