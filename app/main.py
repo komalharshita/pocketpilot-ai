@@ -114,13 +114,13 @@ def create_app():
     ) as app:
 
         gr.Markdown("""
-        # 🚀 PocketPilot AI
+        # PocketPilot AI
         ### *Your AI-Powered Personal Finance Assistant*
         """)
 
         with gr.Tabs():
 
-            with gr.Tab("📊 Dashboard"):
+            with gr.Tab("Dashboard"):
                 (
                     load_dashboard,
                     receipts_table,
@@ -131,7 +131,7 @@ def create_app():
                     time_chart
                 ) = create_dashboard_tab(firebase_manager)
 
-            with gr.Tab("📤 Upload Receipt"):
+            with gr.Tab("Upload Receipt (Demo)"):
                 upload_event = create_receipt_upload_tab(
                     firebase_manager,
                     doc_ai_processor
@@ -171,7 +171,7 @@ def create_app():
 
         gr.Markdown("""
         ---
-        **PocketPilot AI** | *Powered by Gemini AI • Demo Document AI*
+        **PocketPilot AI by Team CyberForge** | *Powered by Gemini AI • Google Firebase and Demo Document AI*
         """)
 
     return app

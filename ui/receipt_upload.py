@@ -70,7 +70,7 @@ def create_receipt_upload_tab(
             return create_error_message(str(e)), ""
 
     with gr.Column():
-        gr.Markdown("# 📤 Upload Receipt")
+        gr.Markdown("# Upload Receipt")
         gr.Markdown("*Upload receipt images or PDFs for automatic data extraction*")
 
         file_input = gr.File(
@@ -86,7 +86,6 @@ def create_receipt_upload_tab(
         status_message = gr.Markdown("")
         result_display = gr.Markdown("")
 
-        # 🔑 Return this event so main.py can attach dashboard refresh
         upload_event = upload_button.click(
             fn=process_receipt,
             inputs=[file_input],

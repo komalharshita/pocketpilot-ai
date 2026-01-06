@@ -120,7 +120,7 @@ def create_dashboard_tab(firebase_manager: FirebaseManager):
                 empty_df
             )
 
-    gr.Markdown("# 📊 Dashboard")
+    gr.Markdown("# DASHBOARD")
     gr.Markdown("*View your receipts and spending insights*")
 
     summary_display = gr.Markdown("**Total:** ₹0.00 | **Receipts:** 0 | **Average:** ₹0.00")
@@ -133,7 +133,7 @@ def create_dashboard_tab(firebase_manager: FirebaseManager):
         label="Transactions"
     )
 
-    gr.Markdown("## 📈 Spending Insights")
+    gr.Markdown("## INSIGHTS")
 
     with gr.Row():
         category_chart = gr.BarPlot(

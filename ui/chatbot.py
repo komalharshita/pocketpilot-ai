@@ -11,18 +11,13 @@ def create_chatbot_tab(
     gemini_manager: GeminiManager,
     firebase_manager: FirebaseManager
 ):
-    # NOTE:
-    # gemini_manager.generate_response accepts ONLY user_message.
-    # We must NOT pass receipts or modify the service.
 
     def respond(user_message, chat_history):
         if not user_message or user_message.strip() == "":
             return "", chat_history
 
-        # Call Gemini correctly (no extra args)
         reply = gemini_manager.generate_response(user_message)
 
-        # Gradio Chatbot (v4+) expects dict-based messages
         chat_history.append(
             {"role": "user", "content": user_message}
         )
@@ -56,7 +51,7 @@ def create_chatbot_tab(
                 scale=1
             )
 
-        clear_button = gr.Button("🗑️ Clear Conversation")
+        clear_button = gr.Button("Clear Conversation")
 
         with gr.Accordion("💡 Example Questions", open=False):
             gr.Markdown("""
