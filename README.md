@@ -1,4 +1,4 @@
-<!-- Improved compatibility of back to top link -->
+
 <a name="readme-top"></a>
 
 <!-- PROJECT SHIELDS -->
@@ -18,11 +18,12 @@
   <h3 align="center">PocketPilot AI</h3>
 
   <p align="center">
-    A smart personal finance assistant that turns everyday receipts into real-time spending insights using AI.
-    <br />
-    <br />
-  
+  A smart personal finance assistant that turns everyday receipts into real-time spending insights using AI.
   </p>
+
+  <p align="center"><em>
+    Our submission for Cyberathon – GDGoC 2026
+  </em></p>
 </div>
 
 ---
@@ -49,21 +50,38 @@ This leads to poor budgeting decisions and low financial confidence.
 PocketPilot AI solves this by **automating expense capture** and **presenting insights visually and instantly**.
 
 ---
-### Why PocketPilot AI?
-- Reduces friction in everyday expense tracking
-- Provides instant, visual financial insights
-- Combines automation with AI-powered guidance
-- Designed to be simple, fast, and hackathon-ready
+## What We Built
+
+PocketPilot AI is a working end-to-end system that includes:
+
+- A receipt upload pipeline with demo Document AI processing
+- Real-time data storage using Firebase
+- An interactive analytics dashboard (charts + tables)
+- An AI chatbot (Pilot) powered by Gemini AI
+- Automatic dashboard refresh after every receipt upload
+
+All features shown in this repository are fully implemented and functional.
 
 ---
 
 ## Built With
-- Python
-- Gradio
-- Firebase
-- Google Gemini AI
-- Document AI (Demo Mode)
-- Pandas
+
+<p align="left">
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="Python" width="48" height="48"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/gradio.svg" alt="Gradio" width="48" height="48"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/firebase/firebase-plain.svg" alt="Firebase" width="48" height="48"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/pandas/pandas-original.svg" alt="Pandas" width="48" height="48"/>
+</p>
+
+Python--Gradio--Firebase--Pandas
+
+### AI Components
+
+#### Gemini AI
+Gemini AI powers the Pilot chatbot, enabling users to ask finance-related questions and receive contextual responses based on stored receipt data.
+
+#### Document AI (Demo Mode)
+Receipt parsing is implemented using a demo Document AI pipeline to simulate OCR and data extraction. This avoids paid API dependencies while maintaining realistic system behavior.
 
 ---
 
@@ -86,7 +104,6 @@ PocketPilot AI solves this by **automating expense capture** and **presenting in
 
 <img width="500" height="700" alt="flow" src="https://github.com/user-attachments/assets/a69944d2-78b8-4b1f-a060-d25f992fcb05" />
 
-
 ---
 
 ## Getting Started
@@ -108,34 +125,22 @@ python app/main.py
 
 ---
 
-## Usage
-1. Upload a receipt (image or PDF).
-2. Receipt data is processed using demo Document AI.
-3. Data is stored in Firebase.
-4. Dashboard updates instantly with:
-   - 10 most recent receipts
-   - Spending by category
-   - Spending by merchant
-   - Spending over time
-5. Ask finance questions using Pilot AI chatbot.
-
----
-
-## Roadmap
-- Receipt upload & analytics dashboard
-- AI-powered finance chatbot
-- Monthly & yearly summaries (planned)
-- Exportable reports (planned)
-
----
-
 ## License
 MIT License
 
 ---
 
-## Team
-CyberForge
+## Team — CyberForge
+This project was built and submitted as part of **Cyberathon – GDGoC 2026**.
+
+
+| Team Member | Role | Contributions |
+|------------|------|---------------|
+| Komal Harshita | App Deployment & Full Stack | Application deployment, backend integration, Firebase setup, dashboard functionality, AI chatbot integration, end-to-end testing |
+| Team Member 2 | Presentation & Documentation | PPT deck creation, architecture slides, submission documentation |
+| Team Member 3 | Brand Design & UI Identity | Logo design, PPT, and README |
+| Team Member 4 | Video & Demo Content | YouTube demo video creation (≤3 minutes), solution walkthrough, feature explanation, final demo presentation |
+
 
 <!-- MARKDOWN LINKS -->
 [contributors-shield]: https://img.shields.io/github/contributors/komalharshita/pocketpilot-ai.svg?style=for-the-badge
