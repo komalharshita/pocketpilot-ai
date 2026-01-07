@@ -139,7 +139,7 @@ This project was built and submitted as part of **Cyberathon – GDGoC 2026**.
 | Komal Harshita | App Deployment & Full Stack | Application deployment, backend integration, Firebase setup, dashboard functionality, AI chatbot integration, end-to-end testing |
 | Saie Yadav | Presentation & Documentation | PPT deck creation, architecture slides, submission documentation |
 | Pooja Rana| Brand Design & UI Identity | Logo design, PPT, and README |
-|team mamber 4| Video & Demo Content | YouTube demo video creation (≤3 minutes), solution walkthrough, feature explanation, final demo presentation |
+|Vaishnavi Kadam | Video & Demo Content | YouTube demo video creation (≤3 minutes), solution walkthrough, feature explanation, final demo presentation |
 
 
 <!-- MARKDOWN LINKS -->
